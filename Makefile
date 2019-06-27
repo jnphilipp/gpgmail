@@ -9,7 +9,7 @@ clean:
 
 deb: build/package/DEBIAN/control
 	fakeroot dpkg-deb -b build/package build/gpgmail.deb
-	lintian -Ivi build/gpgmail.deb
+	lintian -Ivi --suppress-tags debian-changelog-file-missing-or-wrong-name build/gpgmail.deb
 
 
 install: build/copyright build/changelog build/gpgmail.1.gz
