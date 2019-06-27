@@ -55,7 +55,7 @@ build/package/DEBIAN: build
 
 build/package/DEBIAN/control: build/package/DEBIAN/md5sums
 	@echo "Package: gpgmail" > build/package/DEBIAN/control
-	@echo "Version: `git describe --tags`" >> build/package/DEBIAN/control
+	@echo "Version: `git describe --tags | awk '{print substr($$0,2)}'`" >> build/package/DEBIAN/control
 	@echo "Section: mail" >> build/package/DEBIAN/control
 	@echo "Priority: optional" >> build/package/DEBIAN/control
 	@echo "Architecture: all" >> build/package/DEBIAN/control
