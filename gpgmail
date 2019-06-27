@@ -1,0 +1,131 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# Copyright (C) 2019 Nathanael Philipp (jnphilipp) <nathanael@philipp.land>
+"""Encrypt/Decrypt GPG/MIME emails.
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program. If not, see <http://www.gnu.org/licenses/>.
+"""
+"""This tool can encrypt and decrypt emails using PGP/MIME. When encrypting,
+the tool preserves all headers in the original email in the encrypted part, and
+copies relevant headers to the output. When decrypting, any headers are
+ignored, and only the encrypted headers are restored.
+
+Encrypted email are not reencrypted. This is check based on the content type.
+"""
+
+
+import sys
+
+from argparse import ArgumentParser, RawTextHelpFormatter, ArgumentTypeError
+from email import message_from_file
+from email.encoders import encode_7or8bit
+from email.message import Message
+from email.mime.base import MIMEBase
+from email.mime.application import MIMEApplication
+from email.mime.multipart import MIMEMultipart
+from gnupg import GPG
+from math import ceil, floor
+from typing import List
+
+
+__author__ = 'Nathanael Philipp'
+__email__ = 'nathanael@philipp.land'
+__license__ = 'GPLv3'
+__version__ = '0.1.0'
+__github__ = 'https://github.com/jnphilipp/gpgmail'
+__app__ = (('###########################################\n' +
+            '#                 gpgmail                 #\n' +
+            '#    Encrypt/Decrypt GPG/MIME messages    #\n' +
+            '#                                         #\n' +
+            '#%s%s%s#\n' % (' ' * floor((40 - len(__version__)) / 2),
+                            'v%s' % __version__,
+                            ' ' * ceil((40 - len(__version__)) / 2)) +
+            '#%s%s%s#\n' % (' ' * floor((41 - len(__license__)) / 2),
+                            __license__,
+                            ' ' * ceil((41 - len(__license__)) / 2)) +
+            '#                                         #\n' +
+            '#%s%s%s#\n' % (' ' * floor((41 - len(__author__)) / 2), __author__,
+                            ' ' * ceil((41 - len(__author__)) / 2)) +
+            '#%s%s%s#\n' % (' ' * floor((41 - len(__email__)) / 2), __email__,
+                            ' ' * ceil((41 - len(__email__)) / 2)) +
+            '#                                         #\n' +
+            '#%s%s%s#\n' % (' ' * floor((41 - len(__github__)) / 2), __github__,
+                            ' ' * ceil((41 - len(__github__)) / 2)) +
+            '###########################################'))
+
+
+def encrypt(mail: Message, recipients: List[str]) -> str:
+    """Encrypt the given mail"""
+    encrypted = GPG().encrypt(mail.as_string(), recipients)
+    if not encrypted:
+        raise ValueError(encrypted.status)
+
+    pgp_msg = MIMEBase(_maintype='multipart', _subtype='encrypted',
+                       protocol='application/pgp-encrypted')
+
+    pgp_msg_part1 = Message()
+    pgp_msg_part1.add_header(_name='Content-Type',
+                             _value='application/pgp-encrypted')
+    pgp_msg_part1.add_header(_name='Content-Description',
+                             _value='PGP/MIME version identification')
+    pgp_msg_part1.set_payload('Version: 1\n')
+
+    pgp_msg_part2 = Message()
+    pgp_msg_part2.add_header(_name='Content-Type',
+                             _value='application/octet-stream',
+                             name='encrypted.asc')
+    pgp_msg_part2.add_header(_name='Content-Description',
+                             _value='OpenPGP encrypted message')
+    pgp_msg_part2.add_header(_name='Content-Disposition',
+                             _value='inline', filename='encrypted.asc')
+    pgp_msg_part2.set_payload(str(encrypted))
+
+    pgp_msg.attach(pgp_msg_part1)
+    pgp_msg.attach(pgp_msg_part2)
+
+    headers_not_to_override = {key.lower() for key in pgp_msg.keys()}
+    for key, value in mail.items():
+        if key.lower() not in headers_not_to_override:
+            pgp_msg[key] = value
+
+    return pgp_msg.as_string()
+
+
+def decrypt(mail: Message) -> str:
+    """Decrypt the given mail"""
+    return str(GPG().decrypt(mail.as_string()))
+
+
+if __name__ == '__main__':
+    parser = ArgumentParser(prog='gpgmail',
+                            formatter_class=RawTextHelpFormatter)
+    parser.add_argument('-v', '--version', action='version', version=__app__)
+    parser.add_argument('RECIPIENTS', nargs='*',
+                        help='Key id or email of keys to encrypt for')
+
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument('-e', '--encrypt', action='store_true',
+                       help='Encrypt email from stdin to stdout.')
+    group.add_argument('-d', '--decrypt', action='store_true',
+                       help='Decrypt email from stdin to stdout.')
+    args = parser.parse_args()
+
+    mail = message_from_file(sys.stdin)
+    if args.encrypt:
+        if mail.get_content_type() == 'multipart/encrypted':
+            sys.stdout.write(mail.as_string())
+        else:
+            sys.stdout.write(encrypt(mail, args.RECIPIENTS))
+    elif args.decrypt:
+        sys.stdout.write(decrypt(mail))
