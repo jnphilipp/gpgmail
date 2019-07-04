@@ -11,10 +11,28 @@ Encrypted email are not reencrypted. This is check based on the content type.
 ## Requirements
 
 * Python 3.6 or newer (3.7 recommended)
-* gnupg
+* python3-gnupg
 
 
 ## Install
 
 * from Source: ```make install```
 * deb-Packet: ```make deb```
+
+
+## Usage
+
+### Postfix
+
+Update ```smtp```, ```smtps``` and ```submission``` in ```/etc/postfix/master.cf```, add ```-o content_filter=gpgmail-pipe``` to the end, for example:
+
+```
+smtp    inet    n    -    -    -    -    smtpd -o content_filter=gpgmail-pipe
+```
+
+And add to the end of ```/etc/postfix/master.cf```:
+
+```
+gpgmail-pipe    unix    -    n    n    -    -    pipe
+  flags=Rq user=gpgmail argv=/usr/bin/gpgmail-postfix gnupghome=/home/gpgmail/.gnupg -oi -f ${sender} ${recipient}
+```
