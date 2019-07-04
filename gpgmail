@@ -49,9 +49,9 @@ version = f'%(prog)s v{__version__}\n\nReport bugs to {__github__}/issues.' + \
     f'\n\nWritten by {__author__} <{__email__}>'
 
 
-def encrypt(mail: Message, recipients: List[str]) -> str:
+def encrypt(mail: Message, recipients: List[str], gnupghome: str=None) -> str:
     """Encrypt the given mail"""
-    encrypted = GPG().encrypt(mail.as_string(), recipients)
+    encrypted = GPG(gnupghome=gnupghome).encrypt(mail.as_string(), recipients)
     if not encrypted.ok:
         sys.stderr.write(encrypted.status)
         return mail.as_string()
@@ -87,9 +87,9 @@ def encrypt(mail: Message, recipients: List[str]) -> str:
     return pgp_msg.as_string()
 
 
-def decrypt(mail: Message) -> str:
+def decrypt(mail: Message, gnupghome: str=None) -> str:
     """Decrypt the given mail"""
-    decrypted = GPG().decrypt(mail.as_string())
+    decrypted = GPG(gnupghome=gnupghome).decrypt(mail.as_string())
     if not decrypted.ok:
         sys.stderr.write(decrypted.status)
         return mail.as_string()
@@ -108,6 +108,9 @@ if __name__ == '__main__':
                        help='Encrypt email from stdin to stdout.')
     group.add_argument('-d', '--decrypt', action='store_true',
                        help='Decrypt email from stdin to stdout.')
+
+    parser.add_argument('--gnupghome', default=None,
+                        help='Path to GnuPG home dir.')
     args = parser.parse_args()
 
     mail = message_from_file(sys.stdin)
@@ -115,6 +118,6 @@ if __name__ == '__main__':
         if mail.get_content_type() == 'multipart/encrypted':
             sys.stdout.write(mail.as_string())
         else:
-            sys.stdout.write(encrypt(mail, args.RECIPIENTS))
+            sys.stdout.write(encrypt(mail, args.RECIPIENTS, args.gnupghome))
     elif args.decrypt:
-        sys.stdout.write(decrypt(mail))
+        sys.stdout.write(decrypt(mail, args.gnupghome))
