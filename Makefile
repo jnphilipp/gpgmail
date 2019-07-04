@@ -16,6 +16,7 @@ install: build/copyright build/changelog build/gpgmail.1.gz
 	@apt install python3-gnupg
 
 	@install -m 0755 gpgmail ${BINDIR}/gpgmail
+	@install -m 0755 gpgmail-postfix ${BINDIR}/gpgmail-postfix
 	@install -Dm 0644 build/changelog.gz "${DOCDIR}"/gpgmail/changelog.gz
 	@install -Dm 0644 build/copyright "${DOCDIR}"/gpgmail/copyright
 	@install -Dm 0644 build/gpgmail.1.gz "${MANDIR}"/man1/gpgmail.1.gz
@@ -27,6 +28,7 @@ uninstall:
 	@apt remove python3-gnupg
 	@rm -r "${DOCDIR}"/gpgmail
 	@rm "${BINDIR}"/gpgmail
+	@rm "${BINDIR}"/gpgmail-postfix
 	@rm "${MANDIR}"/man1/gpgmail.1.gz
 
 	@echo "gpgmail uninstall completed."
@@ -69,6 +71,7 @@ build/package/DEBIAN/control: build/package/DEBIAN/md5sums
 
 build/package/DEBIAN/md5sums: gpgmail build/copyright build/changelog build/gpgmail.1.gz build/package/DEBIAN
 	@install -Dm 0755 gpgmail build/package"${BINDIR}"/gpgmail
+	@install -Dm 0755 gpgmail-postfix build/package"${BINDIR}"/gpgmail-postfix
 	@install -Dm 0644 build/changelog.gz build/package"${DOCDIR}"/gpgmail/changelog.gz
 	@install -Dm 0644 build/copyright build/package"${DOCDIR}"/gpgmail/copyright
 	@install -Dm 0644 build/gpgmail.1.gz build/package"${MANDIR}"/man1/gpgmail.1.gz
