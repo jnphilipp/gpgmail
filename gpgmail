@@ -52,8 +52,9 @@ version = f'%(prog)s v{__version__}\n\nReport bugs to {__github__}/issues.' + \
 def encrypt(mail: Message, recipients: List[str]) -> str:
     """Encrypt the given mail"""
     encrypted = GPG().encrypt(mail.as_string(), recipients)
-    if not encrypted:
-        raise ValueError(encrypted.status)
+    if not encrypted.ok:
+        sys.stderr.write(encrypted.status)
+        return mail.as_string()
 
     pgp_msg = MIMEBase(_maintype='multipart', _subtype='encrypted',
                        protocol='application/pgp-encrypted')
@@ -88,7 +89,11 @@ def encrypt(mail: Message, recipients: List[str]) -> str:
 
 def decrypt(mail: Message) -> str:
     """Decrypt the given mail"""
-    return str(GPG().decrypt(mail.as_string()))
+    decrypted = GPG().decrypt(mail.as_string())
+    if not decrypted.ok:
+        sys.stderr.write(decrypted.status)
+        return mail.as_string()
+    return str(decrypted)
 
 
 if __name__ == '__main__':
