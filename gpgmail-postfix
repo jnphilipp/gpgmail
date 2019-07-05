@@ -22,7 +22,7 @@ if [ "$#" == "0" ]; then
 fi
 
 SENDMAIL=/usr/sbin/sendmail
-GPGMAIL=./gpgmail
+GPGMAIL=/usr/bin/gpgmail
 set -o pipefail
 
 #encrypt and resend directly from stdin
