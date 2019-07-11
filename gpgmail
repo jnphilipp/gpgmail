@@ -42,7 +42,7 @@ from typing import List
 __author__ = 'Nathanael Philipp'
 __email__ = 'nathanael@philipp.land'
 __license__ = 'GPLv3'
-__version__ = '0.3.0'
+__version__ = '0.3.1'
 __github__ = 'https://github.com/jnphilipp/gpgmail'
 version = f'%(prog)s v{__version__}\n\nReport bugs to {__github__}/issues.' + \
     f'\n\nWritten by {__author__} <{__email__}>'
@@ -58,11 +58,10 @@ def copy_headers(source: Message, target: Message) -> Message:
     return target
 
 
-def encrypt(mail: Message, recipients: List[str], gnupghome: str=None) -> str:
+def encrypt(mail: Message, recipients: List[str], encrypt_subject: bool=True,
+            gnupghome: str=None) -> str:
     """Encrypt the given mail"""
     if mail.get_content_type() == 'text/plain':
-        replace_subject = True
-
         base_msg = MIMEBase(_maintype='multipart', _subtype='mixed',
                             protected_headers='v1')
 
@@ -84,6 +83,8 @@ def encrypt(mail: Message, recipients: List[str], gnupghome: str=None) -> str:
         base_msg.attach(pheaders_msg)
         base_msg.attach(text_msg)
         mail = copy_headers(mail, base_msg)
+    else:
+        encrypt_subject = False
 
     encrypted = GPG(gnupghome=gnupghome).encrypt(mail.as_string(), recipients)
     if not encrypted.ok:
@@ -92,7 +93,7 @@ def encrypt(mail: Message, recipients: List[str], gnupghome: str=None) -> str:
 
     pgp_msg = MIMEBase(_maintype='multipart', _subtype='encrypted',
                        protocol='application/pgp-encrypted')
-    if replace_subject:
+    if encrypt_subject:
         pgp_msg.add_header(_name='Subject', _value='...')
 
     pgp_msg_part1 = Message()
@@ -130,6 +131,8 @@ if __name__ == '__main__':
     parser = ArgumentParser(prog='gpgmail',
                             formatter_class=RawTextHelpFormatter)
     parser.add_argument('-v', '--version', action='version', version=version)
+    parser.add_argument('-S', '--encrypt-subject', action='store_true',
+                        help='Encrypt the subject when encrypting a email.')
     parser.add_argument('RECIPIENTS', nargs='*',
                         help='Key id or email of keys to encrypt for')
 
@@ -148,6 +151,7 @@ if __name__ == '__main__':
         if mail.get_content_type() == 'multipart/encrypted':
             sys.stdout.write(mail.as_string())
         else:
-            sys.stdout.write(encrypt(mail, args.RECIPIENTS, args.gnupghome))
+            sys.stdout.write(encrypt(mail, args.RECIPIENTS,
+                                     args.encrypt_subject, args.gnupghome))
     elif args.decrypt:
         sys.stdout.write(decrypt(mail, args.gnupghome))
