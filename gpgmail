@@ -61,7 +61,7 @@ def copy_headers(source: Message, target: Message) -> Message:
 def encrypt(mail: Message, recipients: List[str], encrypt_subject: bool=True,
             gnupghome: str=None) -> str:
     """Encrypt the given mail"""
-    if mail.get_content_type() == 'text/plain':
+    if 'protected-headers="v1"' not in mail['Content-Type']:
         base_msg = MIMEBase(_maintype='multipart', _subtype='mixed',
                             protected_headers='v1')
 
@@ -76,15 +76,13 @@ def encrypt(mail: Message, recipients: List[str], encrypt_subject: bool=True,
             if k.lower() in keys:
                 pheaders_msg.add_header(_name=k, _value=mail[k])
 
-        text_msg = Message()
-        text_msg['Content-Type'] = mail['Content-Type']
-        text_msg.set_payload(mail.get_payload())
+        orig_msg = Message()
+        orig_msg['Content-Type'] = mail['Content-Type']
+        orig_msg.set_payload(mail.get_payload())
 
         base_msg.attach(pheaders_msg)
-        base_msg.attach(text_msg)
+        base_msg.attach(orig_msg)
         mail = copy_headers(mail, base_msg)
-    else:
-        encrypt_subject = False
 
     encrypted = GPG(gnupghome=gnupghome).encrypt(mail.as_string(), recipients)
     if not encrypted.ok:
