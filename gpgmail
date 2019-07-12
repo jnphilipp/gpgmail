@@ -44,7 +44,7 @@ __email__ = 'nathanael@philipp.land'
 __license__ = 'GPLv3'
 __version__ = '0.3.5'
 __github__ = 'https://github.com/jnphilipp/gpgmail'
-version = f'%(prog)s v{__version__}\n\nReport bugs to {__github__}/issues.' + \
+VERSION = f'%(prog)s v{__version__}\n\nReport bugs to {__github__}/issues.' + \
     f'\n\nWritten by {__author__} <{__email__}>'
 PROTECTED_HEADERS = {'CC', 'Date', 'Followup-To', 'From', 'Message-ID',
                      'Newsgroups', 'References', 'Reply-To', 'Subject', 'To'}
@@ -58,33 +58,13 @@ def copy_headers(source: Message, target: Message) -> Message:
     return target
 
 
-def protected_headers_mail(mail: Message) -> Message:
-    """Converts a given mail into a mail with protected headers (RFC 822)."""
-    if 'Content-Type' not in mail or ('Content-Type' in mail and \
-            'protected-headers="v1"' not in mail['Content-Type']):
-        base_msg = MIMEBase(_maintype='multipart', _subtype='mixed',
-                            protected_headers='v1')
-
-        pheaders_msg = Message()
-        pheaders_msg.add_header(_name='Content-Type',
-                                 _value='text/rfc822-headers',
-                                 protected_headers='v1')
-        pheaders_msg.add_header(_name='Content-Disposition', _value='inline')
-
-        keys = {k.lower() for k in mail.keys()}
-        for k in PROTECTED_HEADERS:
-            if k.lower() in keys:
-                pheaders_msg.add_header(_name=k, _value=mail[k])
-
-        orig_msg = Message()
-        if 'Content-Type' in mail:
-            orig_msg['Content-Type'] = mail['Content-Type']
-        orig_msg.set_payload(mail.get_payload())
-
-        base_msg.attach(pheaders_msg)
-        base_msg.attach(orig_msg)
-        return copy_headers(mail, base_msg)
-    return mail
+def decrypt(mail: Message, gnupghome: str=None) -> str:
+    """Decrypt the given mail"""
+    decrypted = GPG(gnupghome=gnupghome).decrypt(mail.as_string())
+    if not decrypted.ok:
+        sys.stderr.write(decrypted.status)
+        return mail.as_string()
+    return str(decrypted)
 
 
 def encrypt(mail: Message, recipients: List[str], encrypt_subject: bool=True,
@@ -123,40 +103,61 @@ def encrypt(mail: Message, recipients: List[str], encrypt_subject: bool=True,
     return copy_headers(pmail, pgp_msg).as_string()
 
 
-def decrypt(mail: Message, gnupghome: str=None) -> str:
-    """Decrypt the given mail"""
-    decrypted = GPG(gnupghome=gnupghome).decrypt(mail.as_string())
-    if not decrypted.ok:
-        sys.stderr.write(decrypted.status)
-        return mail.as_string()
-    return str(decrypted)
+def protected_headers_mail(mail: Message) -> Message:
+    """Converts a given mail into a mail with protected headers (RFC 822)."""
+    if 'Content-Type' not in mail or ('Content-Type' in mail and \
+            'protected-headers="v1"' not in mail['Content-Type']):
+        base_msg = MIMEBase(_maintype='multipart', _subtype='mixed',
+                            protected_headers='v1')
+
+        pheaders_msg = Message()
+        pheaders_msg.add_header(_name='Content-Type',
+                                 _value='text/rfc822-headers',
+                                 protected_headers='v1')
+        pheaders_msg.add_header(_name='Content-Disposition', _value='inline')
+
+        keys = {k.lower() for k in mail.keys()}
+        for k in PROTECTED_HEADERS:
+            if k.lower() in keys:
+                pheaders_msg.add_header(_name=k, _value=mail[k])
+
+        orig_msg = Message()
+        if 'Content-Type' in mail:
+            orig_msg['Content-Type'] = mail['Content-Type']
+        orig_msg.set_payload(mail.get_payload())
+
+        base_msg.attach(pheaders_msg)
+        base_msg.attach(orig_msg)
+        return copy_headers(mail, base_msg)
+    return mail
 
 
 if __name__ == '__main__':
     parser = ArgumentParser(prog='gpgmail',
                             formatter_class=RawTextHelpFormatter)
-    parser.add_argument('-v', '--version', action='version', version=version)
+    parser.add_argument('-v', '--version', action='version', version=VERSION)
+    parser.add_argument('--gnupghome', default=None,
+                        help='Path to GnuPG home dir.')
     parser.add_argument('-S', '--encrypt-subject', action='store_true',
                         help='Encrypt the subject when encrypting a email.')
     parser.add_argument('RECIPIENTS', nargs='*',
                         help='Key id or email of keys to encrypt for')
 
     group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument('-e', '--encrypt', action='store_true',
-                       help='Encrypt email from stdin to stdout.')
     group.add_argument('-d', '--decrypt', action='store_true',
                        help='Decrypt email from stdin to stdout.')
+    group.add_argument('-e', '--encrypt', action='store_true',
+                       help='Encrypt email from stdin to stdout.')
 
-    parser.add_argument('--gnupghome', default=None,
-                        help='Path to GnuPG home dir.')
+
     args = parser.parse_args()
 
     mail = message_from_file(sys.stdin)
-    if args.encrypt:
+    if args.decrypt:
+        sys.stdout.write(decrypt(mail, args.gnupghome))
+    elif args.encrypt:
         if mail.get_content_type() == 'multipart/encrypted':
             sys.stdout.write(mail.as_string())
         else:
             sys.stdout.write(encrypt(mail, args.RECIPIENTS,
                                      args.encrypt_subject, args.gnupghome))
-    elif args.decrypt:
-        sys.stdout.write(decrypt(mail, args.gnupghome))
