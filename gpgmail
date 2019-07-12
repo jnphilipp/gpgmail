@@ -42,7 +42,7 @@ from typing import List
 __author__ = 'Nathanael Philipp'
 __email__ = 'nathanael@philipp.land'
 __license__ = 'GPLv3'
-__version__ = '0.3.3'
+__version__ = '0.3.4'
 __github__ = 'https://github.com/jnphilipp/gpgmail'
 version = f'%(prog)s v{__version__}\n\nReport bugs to {__github__}/issues.' + \
     f'\n\nWritten by {__author__} <{__email__}>'
@@ -60,7 +60,8 @@ def copy_headers(source: Message, target: Message) -> Message:
 
 def protected_headers_mail(mail: Message) -> Message:
     """Converts a given mail into a mail with protected headers (RFC 822)."""
-    if 'protected-headers="v1"' not in mail['Content-Type']:
+    if 'Content-Type' not in mail or ('Content-Type' in mail and \
+            'protected-headers="v1"' not in mail['Content-Type']):
         base_msg = MIMEBase(_maintype='multipart', _subtype='mixed',
                             protected_headers='v1')
 
@@ -76,7 +77,8 @@ def protected_headers_mail(mail: Message) -> Message:
                 pheaders_msg.add_header(_name=k, _value=mail[k])
 
         orig_msg = Message()
-        orig_msg['Content-Type'] = mail['Content-Type']
+        if 'Content-Type' in mail:
+            orig_msg['Content-Type'] = mail['Content-Type']
         orig_msg.set_payload(mail.get_payload())
 
         base_msg.attach(pheaders_msg)
