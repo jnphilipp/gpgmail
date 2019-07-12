@@ -12,7 +12,7 @@ deb: build/package/DEBIAN/control
 	lintian -Ivi --suppress-tags debian-changelog-file-missing-or-wrong-name build/gpgmail.deb
 
 
-install: build/copyright build/changelog build/gpgmail.1.gz
+install: build/copyright build/changelog build/gpgmail.1.gz build/gpgmail-postfix.1.gz
 	@apt install python3-gnupg
 
 	@install -m 0755 gpgmail ${BINDIR}/gpgmail
@@ -20,6 +20,7 @@ install: build/copyright build/changelog build/gpgmail.1.gz
 	@install -Dm 0644 build/changelog.gz "${DOCDIR}"/gpgmail/changelog.gz
 	@install -Dm 0644 build/copyright "${DOCDIR}"/gpgmail/copyright
 	@install -Dm 0644 build/gpgmail.1.gz "${MANDIR}"/man1/gpgmail.1.gz
+	@install -Dm 0644 build/gpgmail-postfix.1.gz "${MANDIR}"/man1/gpgmail-postfix.1.gz
 
 	@echo "gpgmail install completed."
 
@@ -48,7 +49,10 @@ build/copyright: build
 	@echo "[COPYRIGHT]\nThis program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.\n\nThis program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.\n\nYou should have received a copy of the GNU General Public License along with this program. If not, see http://www.gnu.org/licenses/." > build/copyright.h2m
 
 build/gpgmail.1.gz: build build/copyright
-	help2man ./gpgmail -i build/copyright.h2m -n "Encrypt/Decrypt GPG/MIME emails." | gzip -n9 > build/gpgmail.1.gz
+	@help2man ./gpgmail -i build/copyright.h2m -n "Encrypt/Decrypt GPG/MIME emails." | gzip -n9 > build/gpgmail.1.gz
+
+build/gpgmail-postfix.1.gz: build build/copyright
+	@help2man ./gpgmail-postfix -i build/copyright.h2m -n "Postfix filter script for gpgmail." | gzip -n9 > build/gpgmail-postfix.1.gz
 
 
 build/package/DEBIAN: build
@@ -69,12 +73,13 @@ build/package/DEBIAN/control: build/package/DEBIAN/md5sums
 	@echo " This tool can encrypt and decrypt emails using PGP/MIME. Emails inputed from\n stdin and outputed to stdout. When encrypting, the tool preserves all headers\n in the original email in the encrypted part, and copies relevant headers to\n the output. When decrypting, any headers are ignored, and only the encrypted\n headers are restored.\n Encrypted email are not reencrypted. This is check based on the content type." >> build/package/DEBIAN/control
 
 
-build/package/DEBIAN/md5sums: gpgmail build/copyright build/changelog build/gpgmail.1.gz build/package/DEBIAN
+build/package/DEBIAN/md5sums: gpgmail build/copyright build/changelog build/gpgmail.1.gz build/gpgmail-postfix.1.gz build/package/DEBIAN
 	@install -Dm 0755 gpgmail build/package"${BINDIR}"/gpgmail
 	@install -Dm 0755 gpgmail-postfix build/package"${BINDIR}"/gpgmail-postfix
 	@install -Dm 0644 build/changelog.gz build/package"${DOCDIR}"/gpgmail/changelog.gz
 	@install -Dm 0644 build/copyright build/package"${DOCDIR}"/gpgmail/copyright
 	@install -Dm 0644 build/gpgmail.1.gz build/package"${MANDIR}"/man1/gpgmail.1.gz
+	@install -Dm 0644 build/gpgmail-postfix.1.gz build/package"${MANDIR}"/man1/gpgmail-postfix.1.gz
 
 	@mkdir -p build/package/DEBIAN
 	@md5sum `find build/package -type f -not -path "*DEBIAN*"` > build/md5sums

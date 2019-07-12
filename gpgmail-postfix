@@ -16,7 +16,7 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 USAGE="Usage: $0 (gnupghome=PATH) -oi -f SENDER RECIPIENT ARGS"
-if [ "$#" == "0" ]; then
+if [ "$#" == "0" ] || [ "$1" == "--help" ] || [ "$1" == "--version" ]; then
     echo "$USAGE"
     exit 1
 fi
@@ -30,7 +30,7 @@ if [[ ${1:0:10} == "gnupghome=" ]]; then
     GNUPGHOME=${1:10}
     shift
 
-    ${GPGMAIL} --gnupghome $GNUPGHOME -e "$4" | ${SENDMAIL} "$@"
+    ${GPGMAIL} --gnupghome $GNUPGHOME -Se "$4" | ${SENDMAIL} "$@"
 else
     ${GPGMAIL} -e "$4" | ${SENDMAIL} "$@"
 fi
