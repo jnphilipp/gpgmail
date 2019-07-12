@@ -42,7 +42,7 @@ from typing import List
 __author__ = 'Nathanael Philipp'
 __email__ = 'nathanael@philipp.land'
 __license__ = 'GPLv3'
-__version__ = '0.3.2'
+__version__ = '0.3.3'
 __github__ = 'https://github.com/jnphilipp/gpgmail'
 version = f'%(prog)s v{__version__}\n\nReport bugs to {__github__}/issues.' + \
     f'\n\nWritten by {__author__} <{__email__}>'
@@ -58,9 +58,8 @@ def copy_headers(source: Message, target: Message) -> Message:
     return target
 
 
-def encrypt(mail: Message, recipients: List[str], encrypt_subject: bool=True,
-            gnupghome: str=None) -> str:
-    """Encrypt the given mail"""
+def protected_headers_mail(mail: Message) -> Message:
+    """Converts a given mail into a mail with protected headers (RFC 822)."""
     if 'protected-headers="v1"' not in mail['Content-Type']:
         base_msg = MIMEBase(_maintype='multipart', _subtype='mixed',
                             protected_headers='v1')
@@ -82,9 +81,15 @@ def encrypt(mail: Message, recipients: List[str], encrypt_subject: bool=True,
 
         base_msg.attach(pheaders_msg)
         base_msg.attach(orig_msg)
-        mail = copy_headers(mail, base_msg)
+        return copy_headers(mail, base_msg)
+    return mail
 
-    encrypted = GPG(gnupghome=gnupghome).encrypt(mail.as_string(), recipients)
+
+def encrypt(mail: Message, recipients: List[str], encrypt_subject: bool=True,
+            gnupghome: str=None) -> str:
+    """Encrypt the given mail"""
+    pmail = protected_headers_mail(mail)
+    encrypted = GPG(gnupghome=gnupghome).encrypt(pmail.as_string(), recipients)
     if not encrypted.ok:
         sys.stderr.write(encrypted.status)
         return mail.as_string()
@@ -113,7 +118,7 @@ def encrypt(mail: Message, recipients: List[str], encrypt_subject: bool=True,
 
     pgp_msg.attach(pgp_msg_part1)
     pgp_msg.attach(pgp_msg_part2)
-    return copy_headers(mail, pgp_msg).as_string()
+    return copy_headers(pmail, pgp_msg).as_string()
 
 
 def decrypt(mail: Message, gnupghome: str=None) -> str:
