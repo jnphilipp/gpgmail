@@ -27,15 +27,11 @@ Encrypted email are not reencrypted. This is check based on the content type.
 
 import sys
 
-from argparse import ArgumentParser, RawTextHelpFormatter, ArgumentTypeError
+from argparse import ArgumentParser, RawTextHelpFormatter
 from email import message_from_file
-from email.encoders import encode_7or8bit
 from email.message import Message
 from email.mime.base import MIMEBase
-from email.mime.application import MIMEApplication
-from email.mime.multipart import MIMEMultipart
 from gnupg import GPG
-from math import ceil, floor
 from typing import List
 
 
@@ -141,7 +137,7 @@ if __name__ == '__main__':
     parser.add_argument('-S', '--encrypt-subject', action='store_true',
                         help='Encrypt the subject when encrypting a email.')
     parser.add_argument('RECIPIENTS', nargs='*',
-                        help='Key id or email of keys to encrypt for')
+                        help='Key id or email of keys to encrypt for.')
 
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('-d', '--decrypt', action='store_true',
