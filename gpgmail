@@ -25,6 +25,7 @@ headers are restored.
 Encrypted email are not reencrypted. This is check based on the content type.
 """
 
+import re
 import sys
 
 from argparse import ArgumentParser, RawTextHelpFormatter
@@ -128,12 +129,46 @@ def protected_headers_mail(mail: Message) -> Message:
     return mail
 
 
+def sign(mail: Message, key: str, passphrase: str=None,
+         gnupghome: str=None) -> str:
+    """Sign the given mail"""
+    pmail = protected_headers_mail(mail)
+    signature = GPG(gnupghome=gnupghome).sign(re.sub('\r?\n', '\r\n',
+                                                     pmail.as_string()),
+                                              keyid=key, passphrase=passphrase,
+                                              detach=True)
+    if signature.status != 'signature created':
+        sys.stderr.write(signature.status)
+        return mail.as_string()
+
+    pgp_msg = MIMEBase(_maintype='multipart', _subtype='signed',
+                       micalg='pgp-sha512',
+                       protocol='application/pgp-signature')
+
+    pgp_msg_signature = Message()
+    pgp_msg_signature.add_header(_name='Content-Type',
+                                 _value='application/pgp-signature',
+                                 name='signature.asc')
+    pgp_msg_signature.add_header(_name='Content-Description',
+                                 _value='OpenPGP digital signature')
+    pgp_msg_signature.add_header(_name='Content-Disposition',
+                                 _value='attachment', filename='signature.asc')
+    pgp_msg_signature.set_payload(str(signature))
+
+    pgp_msg.attach(pmail)
+    pgp_msg.attach(pgp_msg_signature)
+    return copy_headers(pmail, pgp_msg).as_string()
+
+
 if __name__ == '__main__':
     parser = ArgumentParser(prog='gpgmail',
                             formatter_class=RawTextHelpFormatter)
     parser.add_argument('-v', '--version', action='version', version=VERSION)
     parser.add_argument('--gnupghome', default=None,
                         help='Path to GnuPG home dir.')
+    parser.add_argument('-k', '--key', help='GnuPG key')
+    parser.add_argument('-p', '--passphrase', default=None,
+                        help='Passphrase for given GnuPG key.')
     parser.add_argument('-S', '--encrypt-subject', action='store_true',
                         help='Encrypt the subject when encrypting a email.')
     parser.add_argument('RECIPIENTS', nargs='*',
@@ -144,8 +179,8 @@ if __name__ == '__main__':
                        help='Decrypt email from stdin to stdout.')
     group.add_argument('-e', '--encrypt', action='store_true',
                        help='Encrypt email from stdin to stdout.')
-
-
+    group.add_argument('-s', '--sign', action='store_true',
+                       help='Sign email from stdin to stdout.')
     args = parser.parse_args()
 
     mail = message_from_file(sys.stdin)
@@ -157,3 +192,5 @@ if __name__ == '__main__':
         else:
             sys.stdout.write(encrypt(mail, args.RECIPIENTS,
                                      args.encrypt_subject, args.gnupghome))
+    elif args.sign:
+        sys.stdout.write(sign(mail, args.key, args.passphrase, args.gnupghome))
