@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-USAGE="Usage: $0 (gnupghome=PATH) -oi -f SENDER RECIPIENT ARGS"
+USAGE="Usage: $0 [decrypt|encrypt|sign|sign-encrypt] (gnupghome=PATH) (key=KEYID) (passphrase=PASSPHRASE) (encrypt-subject) -oi -f SENDER RECIPIENT ARGS"
 if [ "$#" == "0" ] || [ "$1" == "--help" ] || [ "$1" == "--version" ]; then
     echo "$USAGE"
     exit 1
@@ -23,16 +23,41 @@ fi
 
 SENDMAIL=/usr/sbin/sendmail
 GPGMAIL=/usr/bin/gpgmail
+
+ARGS=""
+COMMAND="--sign-encrypt"
+while true; do
+    if [[ $1 == "decrypt" ]]; then
+        COMMAND="--decrypt"
+        shift
+    elif [[ $1 == "encrypt" ]]; then
+        COMMAND="--encrypt"
+        shift
+    elif [[ $1 == "sign" ]]; then
+        COMMAND="--sign"
+        shift
+    elif [[ $1 == "sign-encrypt" ]]; then
+        COMMAND="--sign-encrypt"
+        shift
+    elif [[ ${1:0:10} == "gnupghome=" ]]; then
+        ARGS="${ARGS} --gnupghome ${1:10}"
+        shift
+    elif [[ ${1:0:4} == "key=" ]]; then
+        ARGS="${ARGS} --key ${1:4}"
+        shift
+    elif [[ ${1:0:11} == "passphrase=" ]]; then
+        ARGS="${ARGS} --passphrase ${1:11}"
+        shift
+    elif [[ $1 == "encrypt-subject" ]]; then
+        ARGS="${ARGS} --encrypt-subject"
+        shift
+    else
+        break
+    fi
+done
+
 set -o pipefail
 
 #encrypt and resend directly from stdin
-if [[ ${1:0:10} == "gnupghome=" ]]; then
-    GNUPGHOME=${1:10}
-    shift
-
-    ${GPGMAIL} --gnupghome $GNUPGHOME -Se "$4" | ${SENDMAIL} "$@"
-else
-    ${GPGMAIL} -e "$4" | ${SENDMAIL} "$@"
-fi
-
+eval ${GPGMAIL} "${ARGS}" "${COMMAND}" "$4" | ${SENDMAIL} "$@"
 exit $?
