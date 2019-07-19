@@ -39,7 +39,7 @@ from typing import List
 __author__ = 'Nathanael Philipp'
 __email__ = 'nathanael@philipp.land'
 __license__ = 'GPLv3'
-__version__ = '0.4.1'
+__version__ = '0.4.2'
 __github__ = 'https://github.com/jnphilipp/gpgmail'
 VERSION = f'%(prog)s v{__version__}\n\nReport bugs to {__github__}/issues.' + \
     f'\n\nWritten by {__author__} <{__email__}>'
@@ -128,6 +128,7 @@ def protected_headers_mail(mail: Message) -> Message:
         if 'Content-Transfer-Encoding' in mail:
             orig_msg['Content-Transfer-Encoding'] = \
                 mail['Content-Transfer-Encoding']
+            del mail['Content-Transfer-Encoding']
         orig_msg.set_payload(mail.get_payload())
 
         base_msg.attach(pheaders_msg)
