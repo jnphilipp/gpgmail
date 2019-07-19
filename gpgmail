@@ -39,7 +39,7 @@ from typing import List
 __author__ = 'Nathanael Philipp'
 __email__ = 'nathanael@philipp.land'
 __license__ = 'GPLv3'
-__version__ = '0.4.0'
+__version__ = '0.4.1'
 __github__ = 'https://github.com/jnphilipp/gpgmail'
 VERSION = f'%(prog)s v{__version__}\n\nReport bugs to {__github__}/issues.' + \
     f'\n\nWritten by {__author__} <{__email__}>'
