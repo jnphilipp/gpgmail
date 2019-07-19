@@ -12,6 +12,7 @@ Encrypted email are not reencrypted. This is check based on the content type.
 
 * Python 3.6 or newer (3.7 recommended)
 * python3-gnupg
+* gnupg
 
 
 ## Install

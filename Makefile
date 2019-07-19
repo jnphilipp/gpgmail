@@ -13,7 +13,7 @@ deb: build/package/DEBIAN/control
 
 
 install: build/copyright build/changelog build/gpgmail.1.gz build/gpgmail-postfix.1.gz
-	@apt install python3-gnupg
+	@apt install python3-gnupg gnupg
 
 	@install -m 0755 gpgmail ${BINDIR}/gpgmail
 	@install -m 0755 gpgmail-postfix ${BINDIR}/gpgmail-postfix
@@ -65,7 +65,7 @@ build/package/DEBIAN/control: build/package/DEBIAN/md5sums
 	@echo "Section: mail" >> build/package/DEBIAN/control
 	@echo "Priority: optional" >> build/package/DEBIAN/control
 	@echo "Architecture: all" >> build/package/DEBIAN/control
-	@echo "Depends: python3 (>= 3.6), python3-gnupg" >> build/package/DEBIAN/control
+	@echo "Depends: python3 (>= 3.6), python3-gnupg, gnupg" >> build/package/DEBIAN/control
 	@echo "Installed-Size: `du -csk build/package/usr | grep -oE "[0-9]+\stotal" | cut -f 1`" >> build/package/DEBIAN/control
 	@echo "Maintainer: Nathanael Philipp <nathanael@philipp.land>" >> build/package/DEBIAN/control
 	@echo "Homepage: https://github.com/jnphilipp/gpgmail" >> build/package/DEBIAN/control
