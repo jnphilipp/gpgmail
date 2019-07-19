@@ -125,6 +125,9 @@ def protected_headers_mail(mail: Message) -> Message:
         orig_msg = Message()
         if 'Content-Type' in mail:
             orig_msg['Content-Type'] = mail['Content-Type']
+        if 'Content-Transfer-Encoding' in mail:
+            orig_msg['Content-Transfer-Encoding'] = \
+                mail['Content-Transfer-Encoding']
         orig_msg.set_payload(mail.get_payload())
 
         base_msg.attach(pheaders_msg)
