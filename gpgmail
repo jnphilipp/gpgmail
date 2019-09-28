@@ -28,7 +28,7 @@ Encrypted email are not reencrypted. This is check based on the content type.
 import re
 import sys
 
-from argparse import ArgumentParser, RawTextHelpFormatter
+from argparse import ArgumentParser, FileType, RawTextHelpFormatter
 from email import message_from_file, message_from_string
 from email.message import Message
 from email.mime.base import MIMEBase
@@ -181,6 +181,8 @@ if __name__ == '__main__':
                         help='Encrypt the subject when encrypting a email.')
     parser.add_argument('RECIPIENTS', nargs='*',
                         help='Key id or email of keys to encrypt for.')
+    parser.add_argument('MAIL', type=FileType('r'), nargs='?',
+                        default=sys.stdin, help='E-mail, default from stdin.')
 
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('-d', '--decrypt', action='store_true',
@@ -193,7 +195,7 @@ if __name__ == '__main__':
                        help='Sign and encrypt email from stdin to stdout.')
     args = parser.parse_args()
 
-    mail = message_from_file(sys.stdin)
+    mail = message_from_file(args.MAIL)
     if args.decrypt:
         sys.stdout.write(decrypt(mail, args.gnupghome))
     elif args.encrypt or args.sign_encrypt:
