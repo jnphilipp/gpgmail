@@ -67,7 +67,7 @@ build/package/DEBIAN/control: build/package/DEBIAN/md5sums
 	@echo "Architecture: all" >> build/package/DEBIAN/control
 	@echo "Depends: python3 (>= 3.6), python3-gnupg, gnupg" >> build/package/DEBIAN/control
 	@echo "Installed-Size: `du -csk build/package/usr | grep -oE "[0-9]+\stotal" | cut -f 1`" >> build/package/DEBIAN/control
-	@echo "Maintainer: Nathanael Philipp <nathanael@philipp.land>" >> build/package/DEBIAN/control
+	@echo "Maintainer: J. Nathanael Philipp <nathanael@philipp.land>" >> build/package/DEBIAN/control
 	@echo "Homepage: https://github.com/jnphilipp/gpgmail" >> build/package/DEBIAN/control
 	@echo "Description: Encrypting and Decrypting emails using PGP/MIME" >> build/package/DEBIAN/control
 	@echo " This tool can encrypt and decrypt emails using PGP/MIME. Emails inputed from\n stdin and outputed to stdout. When encrypting, the tool preserves all headers\n in the original email in the encrypted part, and copies relevant headers to\n the output. When decrypting, any headers are ignored, and only the encrypted\n headers are restored.\n Encrypted email are not reencrypted. This is check based on the content type." >> build/package/DEBIAN/control
