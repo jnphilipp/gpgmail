@@ -68,6 +68,11 @@ def encrypt(mail: Message, recipients: List[str], sign_mail: bool=True,
             key: str=None, passphrase: str=None, encrypt_subject: bool=True,
             gnupghome: str=None) -> str:
     """Encrypt the given mail"""
+
+    content_transfer_encoding = None
+    if 'Content-Transfer-Encoding' in mail:
+        content_transfer_encoding = mail['Content-Transfer-Encoding']
+
     if sign_mail:
         pmail = message_from_string(sign(mail, key, passphrase, gnupghome))
     else:
@@ -75,6 +80,9 @@ def encrypt(mail: Message, recipients: List[str], sign_mail: bool=True,
     encrypted = GPG(gnupghome=gnupghome).encrypt(pmail.as_string(), recipients)
     if not encrypted.ok:
         sys.stderr.write(encrypted.status)
+
+        if content_transfer_encoding is not None:
+            mail['Content-Transfer-Encoding'] = content_transfer_encoding
         return mail.as_string()
 
     pgp_msg = MIMEBase(_maintype='multipart', _subtype='encrypted',
