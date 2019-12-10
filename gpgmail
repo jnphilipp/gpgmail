@@ -39,7 +39,7 @@ from typing import List
 __author__ = 'Nathanael Philipp'
 __email__ = 'nathanael@philipp.land'
 __license__ = 'GPLv3'
-__version__ = '0.4.3'
+__version__ = '0.4.4'
 __github__ = 'https://github.com/jnphilipp/gpgmail'
 VERSION = f'%(prog)s v{__version__}\n\nReport bugs to {__github__}/issues.' + \
     f'\n\nWritten by {__author__} <{__email__}>'
@@ -55,7 +55,7 @@ def copy_headers(source: Message, target: Message) -> Message:
     return target
 
 
-def decrypt(mail: Message, gnupghome: str=None) -> str:
+def decrypt(mail: Message, gnupghome: str = None) -> str:
     """Decrypt the given mail"""
     decrypted = GPG(gnupghome=gnupghome).decrypt(mail.as_string())
     if not decrypted.ok:
@@ -64,16 +64,16 @@ def decrypt(mail: Message, gnupghome: str=None) -> str:
     return str(decrypted)
 
 
-def encrypt(mail: Message, recipients: List[str], sign_mail: bool=True,
-            key: str=None, passphrase: str=None, encrypt_subject: bool=True,
-            gnupghome: str=None) -> str:
+def encrypt(mail: Message, recipients: List[str], sign_mail: bool = True,
+            key: str = None, passphrase: str = None,
+            encrypt_subject: bool = True, gnupghome: str = None) -> str:
     """Encrypt the given mail"""
 
     content_transfer_encoding = None
     if 'Content-Transfer-Encoding' in mail:
         content_transfer_encoding = mail['Content-Transfer-Encoding']
 
-    if sign_mail:
+    if sign_mail and key:
         pmail = message_from_string(sign(mail, key, passphrase, gnupghome))
     else:
         pmail = protected_headers_mail(mail)
@@ -114,15 +114,16 @@ def encrypt(mail: Message, recipients: List[str], sign_mail: bool=True,
 
 def protected_headers_mail(mail: Message) -> Message:
     """Converts a given mail into a mail with protected headers (RFC 822)."""
-    if 'Content-Type' not in mail or ('Content-Type' in mail and \
-            'protected-headers="v1"' not in mail['Content-Type']):
+    if 'Content-Type' not in mail or ('Content-Type' in mail and
+                                      'protected-headers="v1"' not in
+                                      mail['Content-Type']):
         base_msg = MIMEBase(_maintype='multipart', _subtype='mixed',
                             protected_headers='v1')
 
         pheaders_msg = Message()
         pheaders_msg.add_header(_name='Content-Type',
-                                 _value='text/rfc822-headers',
-                                 protected_headers='v1')
+                                _value='text/rfc822-headers',
+                                protected_headers='v1')
         pheaders_msg.add_header(_name='Content-Disposition', _value='inline')
 
         keys = {k.lower() for k in mail.keys()}
@@ -145,8 +146,8 @@ def protected_headers_mail(mail: Message) -> Message:
     return mail
 
 
-def sign(mail: Message, key: str, passphrase: str=None,
-         gnupghome: str=None) -> str:
+def sign(mail: Message, key: str, passphrase: str = None,
+         gnupghome: str = None) -> str:
     """Sign the given mail"""
     pmail = protected_headers_mail(mail)
     signature = GPG(gnupghome=gnupghome).sign(re.sub('\r?\n', '\r\n',
@@ -197,7 +198,8 @@ if __name__ == '__main__':
                        help='Decrypt E-mail.')
     group.add_argument('-e', '--encrypt', action='store_true',
                        help='Encrypt E-mail.')
-    group.add_argument('-s', '--sign', action='store_true', help='Sign E-mail.')
+    group.add_argument('-s', '--sign', action='store_true',
+                       help='Sign E-mail.')
     group.add_argument('-E', '--sign-encrypt', action='store_true',
                        help='Sign and encrypt E-mail.')
     args = parser.parse_args()
@@ -209,8 +211,12 @@ if __name__ == '__main__':
         if mail.get_content_type() == 'multipart/encrypted':
             sys.stdout.write(mail.as_string())
         else:
-            sys.stdout.write(encrypt(mail, args.RECIPIENTS, args.sign_encrypt,
-                                     args.key, args.passphrase,
-                                     args.encrypt_subject, args.gnupghome))
+            try:
+                sys.stdout.write(encrypt(mail, args.RECIPIENTS,
+                                         args.sign_encrypt,
+                                         args.key, args.passphrase,
+                                         args.encrypt_subject, args.gnupghome))
+            except Exception as e:
+                sys.stdout.write(mail.as_string())
     elif args.sign:
         sys.stdout.write(sign(mail, args.key, args.passphrase, args.gnupghome))
