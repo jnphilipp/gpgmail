@@ -29,7 +29,7 @@ import re
 import sys
 
 from argparse import ArgumentParser, FileType, RawTextHelpFormatter
-from email import message_from_file, message_from_string
+from email import message_from_string
 from email.message import Message
 from email.mime.base import MIMEBase
 from gnupg import GPG
@@ -39,7 +39,7 @@ from typing import List
 __author__ = 'Nathanael Philipp'
 __email__ = 'nathanael@philipp.land'
 __license__ = 'GPLv3'
-__version__ = '0.4.4'
+__version__ = '0.4.5'
 __github__ = 'https://github.com/jnphilipp/gpgmail'
 VERSION = f'%(prog)s v{__version__}\n\nReport bugs to {__github__}/issues.' + \
     f'\n\nWritten by {__author__} <{__email__}>'
@@ -59,8 +59,7 @@ def decrypt(mail: Message, gnupghome: str = None, **kwargs) -> str:
     """Decrypt the given mail"""
     decrypted = GPG(gnupghome=gnupghome).decrypt(mail.as_string(), **kwargs)
     if not decrypted.ok:
-        sys.stderr.write(decrypted.status)
-        return mail.as_string()
+        raise RuntimeError(f'Could not decrypt message: {decrypted.status}')
     return str(decrypted)
 
 
@@ -80,11 +79,7 @@ def encrypt(mail: Message, recipients: List[str], sign_mail: bool = True,
         pmail = protected_headers_mail(mail)
     encrypted = GPG(gnupghome=gnupghome).encrypt(pmail.as_string(), recipients)
     if not encrypted.ok:
-        sys.stderr.write(encrypted.status)
-
-        if content_transfer_encoding is not None:
-            mail['Content-Transfer-Encoding'] = content_transfer_encoding
-        return mail.as_string()
+        raise RuntimeError(f'Could not encrypt message: {encrypted.status}')
 
     pgp_msg = MIMEBase(_maintype='multipart', _subtype='encrypted',
                        protocol='application/pgp-encrypted')
@@ -161,8 +156,7 @@ def sign(mail: Message, key: str, passphrase: str = None,
                                               keyid=key, passphrase=passphrase,
                                               detach=True)
     if signature.status != 'signature created':
-        sys.stderr.write(signature.status)
-        return mail.as_string()
+        raise RuntimeError(f'Could not sign message: {signature.status}')
 
     pgp_msg = MIMEBase(_maintype='multipart', _subtype='signed',
                        micalg='pgp-sha512',
@@ -213,21 +207,24 @@ if __name__ == '__main__':
                        help='Sign and encrypt E-mail.')
     args = parser.parse_args()
 
-    mail = message_from_file(args.MAIL)
-    if args.decrypt:
-        sys.stdout.write(decrypt(mail, args.gnupghome,
-                                 passphrase=args.passphrase))
-    elif args.encrypt or args.sign_encrypt:
-        if mail.get_content_type() == 'multipart/encrypted':
-            sys.stdout.write(mail.as_string())
-        else:
-            try:
+    orig_mail = args.MAIL.read()
+    try:
+        mail = message_from_string(orig_mail)
+        if args.decrypt:
+            sys.stdout.write(decrypt(mail, args.gnupghome,
+                                     passphrase=args.passphrase))
+        elif args.encrypt or args.sign_encrypt:
+            if mail.get_content_type() == 'multipart/encrypted':
+                sys.stdout.write(mail.as_string())
+            else:
                 sys.stdout.write(encrypt(mail, args.RECIPIENTS,
                                          args.sign_encrypt,
                                          args.key, args.passphrase,
                                          args.encrypt_headers,
                                          args.encrypt_subject, args.gnupghome))
-            except Exception as e:
-                sys.stdout.write(mail.as_string())
-    elif args.sign:
-        sys.stdout.write(sign(mail, args.key, args.passphrase, args.gnupghome))
+        elif args.sign:
+            sys.stdout.write(sign(mail, args.key, args.passphrase,
+                                  args.gnupghome))
+    except Exception as e:
+        sys.stderr.write(f'{e}')
+        sys.stdout.write(orig_mail)

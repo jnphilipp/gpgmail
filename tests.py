@@ -208,13 +208,32 @@ class GPGMailTests(unittest.TestCase):
         p = Popen(['./gpgmail', '-e', 'alice@example.com', '--gnupghome',
                    self.temp_gpg_homedir.name, '-H'], stdout=PIPE, stdin=PIPE,
                   stderr=PIPE, encoding='utf8')
-        encrypted = p.communicate(input=mail)[0]
+        encrypted, stderr = p.communicate(input=mail)
         self.assertTrue(msg not in encrypted)
         self.assertIn('Date: ...\n', encrypted)
         self.assertIn('From: ...\n', encrypted)
         self.assertIn('Message-ID: ...\n', encrypted)
         self.assertIn('Subject: ...\n', encrypted)
         self.assertIn('To: ...\n', encrypted)
+
+    def test_encryptfail(self):
+        mail = 'Return-Path: <alice@example.com>\nReceived: from ' + \
+            'example.com (example.com [127.0.0.1])\n    by example.com ' + \
+            '(Postfix) with ESMTPSA id E8DB612009F\n    for ' + \
+            '<alice@example.com>; Tue,  7 Jan 2020 19:30:03 +0200 ' + \
+            '(CEST)\nContent-Type: text/plain; charset="utf-8"\n' + \
+            'MIME-Version: 1.0\nContent-Transfer-Encoding: 7bit\n' + \
+            'Subject: Test\nFrom: alice@example.com\n' + \
+            'To: alice@example.com\nDate: Tue, 07 Jan 2020 19:30:03 ' + \
+            '-0000\nMessage-ID:\n ' + \
+            '<123456789.123456.123456789@example.com>\n\nThis is a test ' + \
+            'message.'
+
+        p = Popen(['./gpgmail', '-e', 'alice.do@example.com', '--gnupghome',
+                   self.temp_gpg_homedir.name, '-H'], stdout=PIPE, stdin=PIPE,
+                  stderr=PIPE, encoding='utf8')
+        encrypted, stderr = p.communicate(input=mail)
+        self.assertEqual(mail, encrypted)
 
 
 if __name__ == '__main__':

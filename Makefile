@@ -8,8 +8,13 @@ clean:
 
 
 deb: build/package/DEBIAN/control
+	python3 -m unittest
 	fakeroot dpkg-deb -b build/package build/gpgmail.deb
 	lintian -Ivi --suppress-tags debian-changelog-file-missing-or-wrong-name build/gpgmail.deb
+
+
+test:
+	python3 -m unittest
 
 
 install: build/copyright build/changelog build/gpgmail.1.gz build/gpgmail-postfix.1.gz
