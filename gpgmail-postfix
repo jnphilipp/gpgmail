@@ -27,7 +27,7 @@ from subprocess import PIPE, Popen
 __author__ = 'J. Nathanael Philipp'
 __email__ = 'nathanael@philipp.land'
 __license__ = 'GPLv3'
-__version__ = '0.5.2'
+__version__ = '0.5.3'
 __github__ = 'https://github.com/jnphilipp/gpgmail'
 VERSION = f'%(prog)s v{__version__}\n\nReport bugs to {__github__}/issues.' + \
     f'\n\nWritten by {__author__} <{__email__}>'
@@ -42,7 +42,10 @@ if __name__ == '__main__':
     parser.add_argument('-k', '--key', help='GnuPG key')
     parser.add_argument('-p', '--passphrase', default=None,
                         help='Passphrase for given GnuPG key.')
-    parser.add_argument('--sendmail', nargs='*', default=[],
+
+    parser.add_argument('--sendmail', default='/usr/sbin/sendmail',
+                        help='Sendmail binary')
+    parser.add_argument('--sendmail-args', nargs='*', default=[],
                         help='Arguments passed to sendmail.')
 
     parser.add_argument('--sender', nargs='+', help='Sender')
@@ -91,8 +94,9 @@ if __name__ == '__main__':
     gpgmail += args.recipients
 
     p1 = Popen(gpgmail, stdout=PIPE, stdin=PIPE)
-    p2 = Popen(['sendmail'] + args.sendmail + [f'-f {"".join(args.sender)}'] +
-               args.recipients, stdin=p1.stdout, stdout=PIPE)
+    p2 = Popen([args.sendmail] + args.sendmail_args +
+               [f'-f {"".join(args.sender)}'] + args.recipients,
+               stdin=p1.stdout, stdout=PIPE)
     p1.communicate(args.MAIL.read().encode())
     p1.stdout.close()
     output = p2.communicate()
