@@ -16,8 +16,8 @@ clean:
 	$(Q)rm -rf ./build
 
 deb: test build/package/DEBIAN/control
-	$(Q)fakeroot dpkg-deb -b build/package build/psync.deb
-	$(Q)lintian -Ivi build/psync.deb
+	$(Q)fakeroot dpkg-deb -b build/package build/gpgmail.deb
+	$(Q)lintian -Ivi build/gpgmail.deb
 
 test:
 	python3 -m unittest
