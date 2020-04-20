@@ -1,5 +1,12 @@
+build/
+
+# Python
 __pycache__/
 .mypy_cache/
-build/
-gpgmail.sublime-project
-gpgmail.sublime-workspace
+
+# SublimeText
+*.sublime-project
+*.sublime-workspace
+
+# other
+.sync-exclude.lst
