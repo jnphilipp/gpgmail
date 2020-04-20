@@ -1,92 +1,121 @@
-BINDIR?=/usr/bin
-DOCDIR?=/usr/share/doc
-MANDIR?=/usr/share/man
+SHELL=/bin/bash
 
+BASH_COMPLETION_DIR?=/usr/share/bash-completion.d
+BIN_DIR?=/usr/bin
+DOC_DIR?=/usr/share/doc
+MAN_DIR?=/usr/share/man
+SHARE_DIR?=/usr/share
+
+ifdef VERBOSE
+  Q :=
+else
+  Q := @
+endif
 
 clean:
-	@rm -rf ./build
+	$(Q)rm -rf ./build
 
-
-deb: build/package/DEBIAN/control
-	python3 -m unittest
-	fakeroot dpkg-deb -b build/package build/gpgmail.deb
-	lintian -Ivi --suppress-tags debian-changelog-file-missing-or-wrong-name build/gpgmail.deb
-
+deb: test build/package/DEBIAN/control
+	$(Q)fakeroot dpkg-deb -b build/package build/psync.deb
+	$(Q)lintian -Ivi build/psync.deb
 
 test:
 	python3 -m unittest
 
+install: build/copyright build/changelog.Debian.gz build/gpgmail.1.gz build/gpgmail-postfix.1.gz
+	$(Q)apt install python3-gnupg gnupg
 
-install: build/copyright build/changelog build/gpgmail.1.gz build/gpgmail-postfix.1.gz
-	@apt install python3-gnupg gnupg
-
-	@install -m 0755 gpgmail ${BINDIR}/gpgmail
-	@install -m 0755 gpgmail-postfix ${BINDIR}/gpgmail-postfix
-	@install -Dm 0644 build/changelog.gz "${DOCDIR}"/gpgmail/changelog.gz
-	@install -Dm 0644 build/copyright "${DOCDIR}"/gpgmail/copyright
-	@install -Dm 0644 build/gpgmail.1.gz "${MANDIR}"/man1/gpgmail.1.gz
-	@install -Dm 0644 build/gpgmail-postfix.1.gz "${MANDIR}"/man1/gpgmail-postfix.1.gz
+	$(Q)install -m 0755 gpgmail ${BIN_DIR}/gpgmail
+	$(Q)install -m 0755 gpgmail-postfix ${BIN_DIR}/gpgmail-postfix
+	$(Q)install -Dm 0644 build/changelog.gz "${DOC_DIR}"/gpgmail/changelog.gz
+	$(Q)install -Dm 0644 build/copyright "${DOC_DIR}"/gpgmail/copyright
+	$(Q)install -Dm 0644 build/gpgmail.1.gz "${MAN_DIR}"/man1/gpgmail.1.gz
+	$(Q)install -Dm 0644 build/gpgmail-postfix.1.gz "${MAN_DIR}"/man1/gpgmail-postfix.1.gz
 
 	@echo "gpgmail install completed."
 
-
 uninstall:
-	@apt remove python3-gnupg
-	@rm -r "${DOCDIR}"/gpgmail
-	@rm "${BINDIR}"/gpgmail
-	@rm "${BINDIR}"/gpgmail-postfix
-	@rm "${MANDIR}"/man1/gpgmail.1.gz
+	$(Q)apt remove python3-gnupg
+	$(Q)rm -r "${DOC_DIR}"/gpgmail
+	$(Q)rm "${BIN_DIR}"/gpgmail
+	$(Q)rm "${BIN_DIR}"/gpgmail-postfix
+	$(Q)rm "${MAN_DIR}"/man1/gpgmail.1.gz
 
 	@echo "gpgmail uninstall completed."
 
-
 build:
-	@mkdir build
-
-
-build/changelog: build
-	@git log --oneline --no-merges --format="%h %d %ai%n    %an <%ae>%n    %s" > build/changelog
-	@cat build/changelog | gzip -n9 > build/changelog.gz
-
+	$(Q)mkdir build
 
 build/copyright: build
-	@echo "Upstream-Name: gpgmail\nSource: https://github.com/jnphilipp/gpgmail\n\nFiles: *\nCopyright: 2019 Nathanael Philipp (jnphilipp) <nathanael@philipp.land>\nLicense: GPL-3+\n This program is free software: you can redistribute it and/or modify\n it under the terms of the GNU General Public License as published by\n the Free Software Foundation, either version 3 of the License, or\n any later version.\n\n This program is distributed in the hope that it will be useful,\n but WITHOUT ANY WARRANTY; without even the implied warranty of\n MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the\n GNU General Public License for more details.\n\n You should have received a copy of the GNU General Public License\n along with this program. If not, see <http://www.gnu.org/licenses/>.\n On Debian systems, the full text of the GNU General Public\n License version 3 can be found in the file\n '/usr/share/common-licenses/GPL-3'." > build/copyright
-	@echo "[COPYRIGHT]\nThis program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.\n\nThis program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.\n\nYou should have received a copy of the GNU General Public License along with this program. If not, see http://www.gnu.org/licenses/." > build/copyright.h2m
+	$(Q)echo "Upstream-Name: gpgmail" > build/copyright
+	$(Q)echo "Source: https://github.com/jnphilipp/gpgmail" >> build/copyright
+	$(Q)echo "Files: *" >> build/copyright
+	$(Q)echo "Copyright: 2019-2020 J. Nathanael Philipp (jnphilipp) <nathanael@philipp.land>" >> build/copyright
+	$(Q)echo "License: GPL-3+" >> build/copyright
+	$(Q)echo " This program is free software: you can redistribute it and/or modify" >> build/copyright
+	$(Q)echo " it under the terms of the GNU General Public License as published by" >> build/copyright
+	$(Q)echo " the Free Software Foundation, either version 3 of the License, or" >> build/copyright
+	$(Q)echo " any later version." >> build/copyright
+	$(Q)echo "" >> build/copyright
+	$(Q)echo " This program is distributed in the hope that it will be useful," >> build/copyright
+	$(Q)echo " but WITHOUT ANY WARRANTY; without even the implied warranty of" >> build/copyright
+	$(Q)echo " MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the" >> build/copyright
+	$(Q)echo " GNU General Public License for more details." >> build/copyright
+	$(Q)echo "" >> build/copyright
+	$(Q)echo " You should have received a copy of the GNU General Public License" >> build/copyright
+	$(Q)echo " along with this program. If not, see <http://www.gnu.org/licenses/>." >> build/copyright
+	$(Q)echo " On Debian systems, the full text of the GNU General Public" >> build/copyright
+	$(Q)echo " License version 3 can be found in the file" >> build/copyright
+	$(Q)echo " '/usr/share/common-licenses/GPL-3'." >> build/copyright
 
-build/gpgmail.1.gz: build build/copyright
-	@help2man ./gpgmail -i build/copyright.h2m -n "Encrypt/Decrypt GPG/MIME emails." | gzip -n9 > build/gpgmail.1.gz
+build/copyright.h2m: build
+	$(Q)echo "[COPYRIGHT]" > build/copyright.h2m
+	$(Q)echo "This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version." >> build/copyright.h2m
+	$(Q)echo "" >> build/copyright.h2m
+	$(Q)echo "This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details." >> build/copyright.h2m
+	$(Q)echo "" >> build/copyright.h2m
+	$(Q)echo "You should have received a copy of the GNU General Public License along with this program. If not, see http://www.gnu.org/licenses/." >> build/copyright.h2m
 
-build/gpgmail-postfix.1.gz: build build/copyright
-	@help2man ./gpgmail-postfix -i build/copyright.h2m -n "Postfix filter script for gpgmail." | gzip -n9 > build/gpgmail-postfix.1.gz
+build/changelog.Debian.gz: build
+	$(Q)declare TAGS=(`git tag`); for ((i=$${#TAGS[@]};i>=0;i--)); do if [ $$i -eq 0 ]; then git log $${TAGS[$$i]} --no-merges --format="gpgmail ($${TAGS[$$i]}-%h) unstable; urgency=medium%n%n  * %s%n    %b%n -- %an <%ae>  %aD%n" | sed "/^\s*$$/d" >> build/changelog; elif [ $$i -eq $${#TAGS[@]} ]; then git log $${TAGS[$$i-1]}..HEAD --no-merges --format="gpgmail ($${TAGS[$$i-1]}-%h) unstable; urgency=medium%n%n  * %s%n    %b%n -- %an <%ae>  %aD%n" | sed "/^\s*$$/d" >> build/changelog; else git log $${TAGS[$$i-1]}..$${TAGS[$$i]} --no-merges --format="gpgmail ($${TAGS[$$i]}-%h) unstable; urgency=medium%n%n  * %s%n    %b%n -- %an <%ae>  %aD%n" | sed "/^\s*$$/d" >> build/changelog; fi; done
+	$(Q)cat build/changelog | gzip -n9 > build/changelog.Debian.gz
 
+build/gpgmail.1.gz: build build/copyright.h2m
+	$(Q)help2man ./gpgmail -i build/copyright.h2m -n "Encrypt/Decrypt GPG/MIME emails." | gzip -n9 > build/gpgmail.1.gz
+
+build/gpgmail-postfix.1.gz: build build/copyright.h2m
+	$(Q)help2man ./gpgmail-postfix -i build/copyright.h2m -n "Postfix filter script for gpgmail." | gzip -n9 > build/gpgmail-postfix.1.gz
 
 build/package/DEBIAN: build
-	@mkdir -p build/package/DEBIAN
+	$(Q)mkdir -p build/package/DEBIAN
 
+build/package/DEBIAN/md5sums: gpgmail gpgmail-postfix build/copyright build/changelog.Debian.gz build/gpgmail.1.gz build/gpgmail-postfix.1.gz build/package/DEBIAN
+	$(Q)install -Dm 0755 gpgmail build/package"${BIN_DIR}"/gpgmail
+	$(Q)install -Dm 0755 gpgmail-postfix build/package"${BIN_DIR}"/gpgmail-postfix
+	$(Q)install -Dm 0644 build/changelog.Debian.gz build/package"${DOC_DIR}"/gpgmail/changelog.Debian.gz
+	$(Q)install -Dm 0644 build/copyright build/package"${DOC_DIR}"/gpgmail/copyright
+	$(Q)install -Dm 0644 build/gpgmail.1.gz build/package"${MAN_DIR}"/man1/gpgmail.1.gz
+	$(Q)install -Dm 0644 build/gpgmail-postfix.1.gz build/package"${MAN_DIR}"/man1/gpgmail-postfix.1.gz
+
+	$(Q)mkdir -p build/package/DEBIAN
+	$(Q)md5sum `find build/package -type f -not -path "*DEBIAN*"` > build/md5sums
+	$(Q)sed -e "s/build\/package\///" build/md5sums > build/package/DEBIAN/md5sums
+	$(Q)chmod 644 build/package/DEBIAN/md5sums
 
 build/package/DEBIAN/control: build/package/DEBIAN/md5sums
-	@echo "Package: gpgmail" > build/package/DEBIAN/control
-	@echo "Version: `git describe --tags | awk '{print substr($$0,2)}'`" >> build/package/DEBIAN/control
-	@echo "Section: mail" >> build/package/DEBIAN/control
-	@echo "Priority: optional" >> build/package/DEBIAN/control
-	@echo "Architecture: all" >> build/package/DEBIAN/control
-	@echo "Depends: python3 (>= 3.6), python3-gnupg, gnupg" >> build/package/DEBIAN/control
-	@echo "Installed-Size: `du -csk build/package/usr | grep -oE "[0-9]+\stotal" | cut -f 1`" >> build/package/DEBIAN/control
-	@echo "Maintainer: J. Nathanael Philipp <nathanael@philipp.land>" >> build/package/DEBIAN/control
-	@echo "Homepage: https://github.com/jnphilipp/gpgmail" >> build/package/DEBIAN/control
-	@echo "Description: Encrypting and Decrypting emails using PGP/MIME" >> build/package/DEBIAN/control
-	@echo " This tool can encrypt and decrypt emails using PGP/MIME. Emails inputed from\n stdin and outputed to stdout. When encrypting, the tool preserves all headers\n in the original email in the encrypted part, and copies relevant headers to\n the output. When decrypting, any headers are ignored, and only the encrypted\n headers are restored.\n Encrypted email are not reencrypted. This is check based on the content type." >> build/package/DEBIAN/control
-
-
-build/package/DEBIAN/md5sums: gpgmail build/copyright build/changelog build/gpgmail.1.gz build/gpgmail-postfix.1.gz build/package/DEBIAN
-	@install -Dm 0755 gpgmail build/package"${BINDIR}"/gpgmail
-	@install -Dm 0755 gpgmail-postfix build/package"${BINDIR}"/gpgmail-postfix
-	@install -Dm 0644 build/changelog.gz build/package"${DOCDIR}"/gpgmail/changelog.gz
-	@install -Dm 0644 build/copyright build/package"${DOCDIR}"/gpgmail/copyright
-	@install -Dm 0644 build/gpgmail.1.gz build/package"${MANDIR}"/man1/gpgmail.1.gz
-	@install -Dm 0644 build/gpgmail-postfix.1.gz build/package"${MANDIR}"/man1/gpgmail-postfix.1.gz
-
-	@mkdir -p build/package/DEBIAN
-	@md5sum `find build/package -type f -not -path "*DEBIAN*"` > build/md5sums
-	@sed -e "s/build\/package\///" build/md5sums > build/package/DEBIAN/md5sums
-	@chmod 644 build/package/DEBIAN/md5sums
+	$(Q)echo "Package: gpgmail" > build/package/DEBIAN/control
+	$(Q)echo "Version: `git describe --tags`-`git log --format=%h -1`" >> build/package/DEBIAN/control
+	$(Q)echo "Section: mail" >> build/package/DEBIAN/control
+	$(Q)echo "Priority: optional" >> build/package/DEBIAN/control
+	$(Q)echo "Architecture: all" >> build/package/DEBIAN/control
+	$(Q)echo "Depends: python3 (>= 3.6), python3-gnupg, gnupg" >> build/package/DEBIAN/control
+	$(Q)echo "Installed-Size: `du -sk build/package/usr | grep -oE "[0-9]+"`" >> build/package/DEBIAN/control
+	$(Q)echo "Maintainer: J. Nathanael Philipp (jnphilipp) <nathanael@philipp.land>" >> build/package/DEBIAN/control
+	$(Q)echo "Homepage: https://github.com/jnphilipp/gpgmail" >> build/package/DEBIAN/control
+	$(Q)echo "Description: Encrypting and Decrypting emails using PGP/MIME" >> build/package/DEBIAN/control
+	$(Q)echo " This tool can encrypt and decrypt emails using PGP/MIME. Emails input from" >> build/package/DEBIAN/control
+	$(Q)echo " stdin and output to stdout. When encrypting, the tool preserves all headers" >> build/package/DEBIAN/control
+	$(Q)echo " in the original email in the encrypted part, and copies relevant headers to" >> build/package/DEBIAN/control
+	$(Q)echo " the output. When decrypting, any headers are ignored, and only the encrypted" >> build/package/DEBIAN/control
+	$(Q)echo " headers are restored." >> build/package/DEBIAN/control
+	$(Q)echo " Encrypted email are not re-encrypted. This is check based on the content type." >> build/package/DEBIAN/control
