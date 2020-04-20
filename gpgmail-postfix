@@ -27,7 +27,7 @@ from subprocess import PIPE, Popen
 __author__ = 'J. Nathanael Philipp'
 __email__ = 'nathanael@philipp.land'
 __license__ = 'GPLv3'
-__version__ = '0.5.0'
+__version__ = '0.5.1'
 __github__ = 'https://github.com/jnphilipp/gpgmail'
 VERSION = f'%(prog)s v{__version__}\n\nReport bugs to {__github__}/issues.' + \
     f'\n\nWritten by {__author__} <{__email__}>'
