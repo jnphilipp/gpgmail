@@ -40,7 +40,7 @@ from typing import List
 __author__ = 'J. Nathanael Philipp'
 __email__ = 'nathanael@philipp.land'
 __license__ = 'GPLv3'
-__version__ = '0.5.3'
+__version__ = '0.5.4'
 __github__ = 'https://github.com/jnphilipp/gpgmail'
 VERSION = f'%(prog)s v{__version__}\n\nReport bugs to {__github__}/issues.' + \
     f'\n\nWritten by {__author__} <{__email__}>'
@@ -182,7 +182,7 @@ if __name__ == '__main__':
     parser = ArgumentParser(prog='gpgmail',
                             formatter_class=RawTextHelpFormatter)
     parser.add_argument('-v', '--version', action='version', version=VERSION)
-    parser.add_argument('--gnupghome', default=None,
+    parser.add_argument('-g', '--gnupghome', default=None,
                         help='Path to GnuPG home dir.')
     parser.add_argument('-k', '--key', help='GnuPG key')
     parser.add_argument('-p', '--passphrase', default=None,
