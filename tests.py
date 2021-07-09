@@ -247,7 +247,6 @@ class GPGMailTests(unittest.TestCase):
             + r"Content-Transfer-Encoding: 7bit\n\nThis is a test message\.\n--"
             + r"===============\d+==--\n"
         )
-        print(decrypted)
         self.assertIsNotNone(re.fullmatch(regex, decrypted))
 
     def test_encryptheaders(self):
