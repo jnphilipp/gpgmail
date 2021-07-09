@@ -10,8 +10,8 @@ Encrypted email are not reencrypted. This is check based on the content type.
 
 ## Requirements
 
-* Python 3.6 or newer (3.7 recommended)
-* python3-gnupg
+* Python 3.7 or newer
+* pythond-gnupg
 * gnupg
 
 
