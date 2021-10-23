@@ -91,7 +91,9 @@ def decrypt(mail: Message, gnupghome: str = None, **kwargs) -> str:
     Returns:
      * Decrypted mail as str.
     """
-    decrypted = GPG(gnupghome=gnupghome).decrypt(mail.as_string(), **kwargs)
+    gpg = GPG(gnupghome=gnupghome)
+    gpg.encoding = "utf-8"
+    decrypted = gpg.decrypt(mail.as_string(), **kwargs)
     if not decrypted.ok:
         raise RuntimeError(f"Could not decrypt message: {decrypted.status}")
     return str(decrypted)
@@ -130,7 +132,9 @@ def encrypt(
         pmail = message_from_string(sign(mail, key, passphrase, gnupghome))
     else:
         pmail = protected_headers_mail(mail)
-    encrypted = GPG(gnupghome=gnupghome).encrypt(pmail.as_string(), recipients)
+    gpg = GPG(gnupghome=gnupghome)
+    gpg.encoding = "utf-8"
+    encrypted = gpg.encrypt(pmail.as_string(), recipients)
     if not encrypted.ok:
         raise RuntimeError(f"Could not encrypt message: {encrypted.status}")
 
@@ -229,7 +233,9 @@ def sign(mail: Message, key: str, passphrase: str = None, gnupghome: str = None)
      * Signed mail as str.
     """
     pmail = protected_headers_mail(mail)
-    signature = GPG(gnupghome=gnupghome).sign(
+    gpg = GPG(gnupghome=gnupghome)
+    gpg.encoding = "utf-8"
+    signature = gpg.sign(
         re.sub("\r?\n", "\r\n", pmail.as_string()),
         keyid=key,
         passphrase=passphrase,
@@ -277,7 +283,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "MAIL",
-        type=FileType("r"),
+        type=FileType("r", encoding="utf8"),
         nargs="?",
         default=sys.stdin,
         help="E-mail, default from stdin.",
@@ -331,5 +337,5 @@ if __name__ == "__main__":
         elif args.sign:
             sys.stdout.write(sign(mail, args.key, args.passphrase, args.gnupghome))
     except Exception as e:
-        sys.stderr.write(f"{e}")
+        sys.stderr.write(f"{e}\n")
         sys.stdout.write(orig_mail)

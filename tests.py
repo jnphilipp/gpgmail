@@ -313,6 +313,78 @@ class GPGMailTests(unittest.TestCase):
         encrypted, stderr = p.communicate(input=mail)
         self.assertEqual(mail, encrypted)
 
+    def test_sign_encrypt_decrypt_utf8(self):
+        mail = (
+            "Return-Path: <alice@example.com>\nReceived: from example.com (example.com "
+            + "[127.0.0.1])\n    by example.com (Postfix) with ESMTPSA id E8DB612009F\n"
+            + "    for <alice@example.com>; Tue,  7 Jan 2020 19:30:03 +0200 (CEST)\n"
+            + 'Content-Type: text/plain; charset="utf-8"\n MIME-Version: 1.0\n'
+            + "Content-Transfer-Encoding: 7bit\nSubject: Test\nFrom: alice@example.com"
+            + "\nTo: alice@example.com\nDate: Tue, 07 Jan 2020 19:30:03 -0000\n"
+            + "Message-ID:\n <123456789.123456.123456789@example.com>\n\nFür alle "
+            + "Räuber in der Röhn, es gibt ein neues Café.\nÄÖÜß\n\nZ pśijaśelnym "
+            + "póstrowom\nMit freundlichen Grüßen\ngpgmail"
+        )
+        msg = (
+            "Für alle Räuber in der Röhn, es gibt ein neues Café.\nÄÖÜß\n\n"
+            + "Z pśijaśelnym póstrowom\nMit freundlichen Grüßen\ngpgmail"
+        )
+
+        p = Popen(
+            [
+                "./gpgmail",
+                "-E",
+                "alice@example.com",
+                "--gnupghome",
+                self.temp_gpg_homedir.name,
+                "-p",
+                "test",
+            ],
+            stdout=PIPE,
+            stdin=PIPE,
+            stderr=PIPE,
+            encoding="utf8",
+        )
+        encrypted = p.communicate(input=mail)[0]
+        self.assertTrue(msg not in encrypted)
+
+        p = Popen(
+            [
+                "./gpgmail",
+                "-p",
+                "test",
+                "-d",
+                "--gnupghome",
+                self.temp_gpg_homedir.name,
+            ],
+            stdout=PIPE,
+            stdin=PIPE,
+            stderr=PIPE,
+            encoding="utf8",
+        )
+        decrypted = p.communicate(input=encrypted)[0]
+
+        self.assertTrue(msg in decrypted)
+        regex = (
+            r'Content-Type: multipart/mixed; protected-headers="v1"; boundary="'
+            + r'===============\d+=="\nMIME-Version: 1\.0\nReturn-Path: <alice@example'
+            + r"\.com>\nReceived: from example\.com \(example.com \[127\.0\.0\.1\]\)\n"
+            + r"    by example\.com \(Postfix\) with ESMTPSA id E8DB612009F\n    for "
+            + r"<alice@example\.com>; Tue,  7 Jan 2020 19:30:03 \+0200 \(CEST\)\n"
+            + r"Subject: Test\nFrom: alice@example\.com\nTo: alice@example\.com\nDate: "
+            + r"Tue, 07 Jan 2020 19:30:03 -0000\nMessage-ID: \n <123456789\.123456\."
+            + r"123456789@example\.com>\n\n--===============\d+==\nContent-Type: text/"
+            + r'rfc822-headers; protected-headers="v1"\nContent-Disposition: inline\n'
+            + r"(Date: Tue, 07 Jan 2020 19:30:03 -0000\n|Subject: Test\n|From: "
+            + r"alice@example\.com\n|To: alice@example\.com\n|Message-ID: \n"
+            + r" <123456789\.123456\.123456789@example\.com>\n)+\n\n--==============="
+            + r'\d+==\nContent-Type: text/plain; charset="utf-8"\n MIME-Version: 1.0\n'
+            + r"Content-Transfer-Encoding: 7bit\n\nFür alle Räuber in der Röhn, es gibt"
+            + r" ein neues Café\.\nÄÖÜß\n\nZ pśijaśelnym póstrowom\nMit freundlichen "
+            + r"Grüßen\ngpgmail\n--===============\d+==--\n"
+        )
+        self.assertIsNotNone(re.fullmatch(regex, decrypted))
+
 
 if __name__ == "__main__":
     unittest.main()
