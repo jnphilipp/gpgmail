@@ -17,7 +17,6 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
-
 """This tool can encrypt and decrypt emails using PGP/MIME.
 
 Emails inputed from stdin and outputed to stdout. When encrypting, the tool preserves
