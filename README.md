@@ -35,5 +35,5 @@ And add to the end of ```/etc/postfix/master.cf```:
 
 ```
 gpgmail-pipe    unix    -    n    n    -    -    pipe
-  flags=Rq user=gpgmail argv=/usr/bin/gpgmail-postfix --sign-encrypt --gnupghome /home/gpgmail/.gnupg --encrypt-header --key KEYID --passphrase PASSPHRASE --recipient ${recipient} -oi -f ${sender}
+  flags=Rq user=gpgmail argv=/usr/bin/gpgmail-postfix --sign-encrypt --gnupghome /home/gpgmail/.gnupg --encrypt-headers --key KEYID --passphrase PASSPHRASE --recipient ${recipient} -oi -f ${sender}
 ```
