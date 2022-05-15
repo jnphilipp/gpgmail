@@ -18,7 +18,8 @@
 
 usage() {
     cat << EOF
-usage: gpgmail-postfix (-d|-e|-s|-E) [-H|-S] [-g PATH] [-k KEYID] [-p PASSPHRASE] -r RECIPIENT [--gpgmailpath GPGMAIL_PATH] [SENDMAIL_ARGS]
+
+usage: gpgmail-postfix (-d|-e|-s|-E) [-H|-S] [-g PATH] [-k KEYID] [-p PASSPHRASE] [--sendmailpath SENDMAIL_PATH] [--gpgmailpath GPGMAIL_PATH] -r RECIPIENT [SENDMAIL_ARGS]
 
 OPTIONS:
     -d / --decrypt                  Decrypt E-mail
@@ -35,6 +36,7 @@ OPTIONS:
     -r / --recipient RECIPIENT      E-mail recipient
     
     --gpgmailpath GPGMAIL_PATH      Path to gpgmail
+    --sendmailpath SENDMAIL_PATH    Path to sendmail or other mail sending utility
 
     SENDMAIL_ARGS                   Arguments passed to sendmail
 
@@ -66,7 +68,7 @@ GPGMAIL_encrypt_headers=
 
 RECIPIENT=
 
-SENDMAIL_ARGS=
+SENDMAIL_ARGS=()
 
 while true ; do
     case "$1" in
@@ -84,11 +86,12 @@ while true ; do
         -r|--recipient) RECIPIENT=$2; shift 2 ;;
 
         --gpgmailpath) GPGMAIL="${2}" ; shift 2 ;;
-        
+        --sendmailpath) SENDMAIL="${2}" ; shift 2 ;;
+
         -h|--help) usage ;;
         -v|--version) version ;;
         "") break ;;
-        *) [ -n "$SENDMAIL_ARGS" ] && SENDMAIL_ARGS="${SENDMAIL_ARGS} ${1}" || SENDMAIL_ARGS=$1; shift ;;
+        *) SENDMAIL_ARGS+=("${1}"); shift ;;
     esac
 done
 
@@ -97,5 +100,5 @@ done
 set -o pipefail
 
 #encrypt and resend directly from stdin
-eval ${GPGMAIL} "${GPGMAIL_command}" "${GPGMAIL_encrypt_headers}" "${GPGMAIL_gnupghome}" "${GPGMAIL_key}" "${GPGMAIL_passphrase}" "${RECIPIENT}" | ${SENDMAIL} "${SENDMAIL_ARGS}" "${RECIPIENT}"
+eval ${GPGMAIL} "${GPGMAIL_command}" "${GPGMAIL_encrypt_headers}" "${GPGMAIL_gnupghome}" "${GPGMAIL_key}" "${GPGMAIL_passphrase}" "${RECIPIENT}" | ${SENDMAIL} "${SENDMAIL_ARGS[@]}" "${RECIPIENT}"
 exit $?
