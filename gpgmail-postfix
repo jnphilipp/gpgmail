@@ -66,7 +66,7 @@ GPGMAIL_encrypt_headers=
 
 RECIPIENT=
 
-SENDMAIL_ARGS=
+SENDMAIL_ARGS=()
 
 while true ; do
     case "$1" in
@@ -88,7 +88,7 @@ while true ; do
         -h|--help) usage ;;
         -v|--version) version ;;
         "") break ;;
-        *) [ -n "$SENDMAIL_ARGS" ] && SENDMAIL_ARGS="${SENDMAIL_ARGS} ${1}" || SENDMAIL_ARGS=$1; shift ;;
+        *) SENDMAIL_ARGS+=("${1}"); shift ;;
     esac
 done
 
@@ -97,5 +97,5 @@ done
 set -o pipefail
 
 #encrypt and resend directly from stdin
-eval ${GPGMAIL} "${GPGMAIL_command}" "${GPGMAIL_encrypt_headers}" "${GPGMAIL_gnupghome}" "${GPGMAIL_key}" "${GPGMAIL_passphrase}" "${RECIPIENT}" | ${SENDMAIL} "${SENDMAIL_ARGS}" "${RECIPIENT}"
+eval ${GPGMAIL} "${GPGMAIL_command}" "${GPGMAIL_encrypt_headers}" "${GPGMAIL_gnupghome}" "${GPGMAIL_key}" "${GPGMAIL_passphrase}" "${RECIPIENT}" | ${SENDMAIL} "${SENDMAIL_ARGS[@]}" "${RECIPIENT}"
 exit $?
