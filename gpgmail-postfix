@@ -18,7 +18,7 @@
 
 usage() {
     cat << EOF
-usage: gpgmail-postfix (-d|-e|-s|-E) [-H|-S] [-g PATH] [-k KEYID] [-p PASSPHRASE] -r RECIPIENT [SENDMAIL_ARGS]
+usage: gpgmail-postfix (-d|-e|-s|-E) [-H|-S] [-g PATH] [-k KEYID] [-p PASSPHRASE] [--gpgmailpath GPGMAIL_PATH] -r RECIPIENT [SENDMAIL_ARGS]
 
 OPTIONS:
     -d / --decrypt                  Decrypt E-mail
@@ -34,6 +34,8 @@ OPTIONS:
     -p / --passphrase PASSPHRASE    Passphrase for PGP-key
     -r / --recipient RECIPIENT      E-mail recipient
 
+    --gpgmailpath GPGMAIL_PATH      Path to gpgmail
+    
     SENDMAIL_ARGS                   Arguments passed to sendmail
 
     -h / --help                     Shows this help message
@@ -80,6 +82,8 @@ while true ; do
         -k|--key) GPGMAIL_key="--key=${2}" ; shift 2 ;;
         -p|--passphrase) GPGMAIL_passphrase="--passphrase=${2}"; shift 2 ;;
         -r|--recipient) RECIPIENT=$2; shift 2 ;;
+
+        --gpgmailpath) GPGMAIL="${2}" ; shift 2 ;;
 
         -h|--help) usage ;;
         -v|--version) version ;;
