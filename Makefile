@@ -1,10 +1,12 @@
-SHELL=/bin/bash
+SHELL:=/bin/bash
 
 BASH_COMPLETION_DIR?=/usr/share/bash-completion.d
 BIN_DIR?=/usr/bin
 DOC_DIR?=/usr/share/doc
 MAN_DIR?=/usr/share/man
 SHARE_DIR?=/usr/share
+DEST_DIR?=
+
 
 ifdef VERBOSE
   Q :=
@@ -12,39 +14,48 @@ else
   Q := @
 endif
 
+
 clean:
 	$(Q)rm -rf ./build
+	$(Q)find . -name __pycache__ -exec rm -rf {} \;
 
-deb: test build/package/DEBIAN/control
-	$(Q)fakeroot dpkg-deb -b build/package build/gpgmail.deb
-	$(Q)lintian -Ivi build/gpgmail.deb
 
 test:
 	python3 -m unittest
 
-install: build/copyright build/changelog.Debian.gz build/gpgmail.1.gz build/gpgmail-postfix.1.gz
-	$(Q)apt install python3-gnupg gnupg
 
-	$(Q)install -m 0755 gpgmail ${BIN_DIR}/gpgmail
-	$(Q)install -m 0755 gpgmail-postfix ${BIN_DIR}/gpgmail-postfix
-	$(Q)install -Dm 0644 build/changelog.gz "${DOC_DIR}"/gpgmail/changelog.gz
-	$(Q)install -Dm 0644 build/copyright "${DOC_DIR}"/gpgmail/copyright
-	$(Q)install -Dm 0644 build/gpgmail.1.gz "${MAN_DIR}"/man1/gpgmail.1.gz
-	$(Q)install -Dm 0644 build/gpgmail-postfix.1.gz "${MAN_DIR}"/man1/gpgmail-postfix.1.gz
+deb: test build/package/DEBIAN/control
+	$(Q)fakeroot dpkg-deb -b build/package build/gpgmail.deb
+	$(Q)lintian -Ivi build/gpgmail.deb
+	$(Q)dpkg-sig -s builder build/gpgmail.deb
+	@echo "gpgmail.deb completed."
+
+
+install: build/copyright build/changelog.gz build/gpgmail.1.gz build/gpgmail-postfix.1.gz
+	$(Q)install -Dm 0755 gpgmail ${DEST_DIR}${BIN_DIR}/gpgmail
+	$(Q)install -Dm 0755 gpgmail-postfix ${DEST_DIR}${BIN_DIR}/gpgmail-postfix
+
+	$(Q)install -Dm 0644 build/changelog.gz ${DEST_DIR}${DOC_DIR}/gpgmail/changelog.gz
+	$(Q)install -Dm 0644 build/copyright ${DEST_DIR}${DOC_DIR}/gpgmail/copyright
+
+	$(Q)install -Dm 0644 build/gpgmail.1.gz ${DEST_DIR}${MAN_DIR}/man1/gpgmail.1.gz
+	$(Q)install -Dm 0644 build/gpgmail-postfix.1.gz ${DEST_DIR}${MAN_DIR}/man1/gpgmail-postfix.1.gz
 
 	@echo "gpgmail install completed."
 
+
 uninstall:
-	$(Q)apt remove python3-gnupg
-	$(Q)rm -r "${DOC_DIR}"/gpgmail
-	$(Q)rm "${BIN_DIR}"/gpgmail
-	$(Q)rm "${BIN_DIR}"/gpgmail-postfix
-	$(Q)rm "${MAN_DIR}"/man1/gpgmail.1.gz
+	$(Q)rm -r ${DEST_DIR}${DOC_DIR}/gpgmail
+	$(Q)rm ${DEST_DIR}${BIN_DIR}/gpgmail
+	$(Q)rm ${DEST_DIR}${BIN_DIR}/gpgmail-postfix
+	$(Q)rm ${DEST_DIR}${MAN_DIR}/man1/gpgmail.1.gz
 
 	@echo "gpgmail uninstall completed."
 
+
 build:
 	$(Q)mkdir build
+
 
 build/copyright: build
 	$(Q)echo "Upstream-Name: gpgmail" > build/copyright
@@ -68,6 +79,7 @@ build/copyright: build
 	$(Q)echo " License version 3 can be found in the file" >> build/copyright
 	$(Q)echo " '/usr/share/common-licenses/GPL-3'." >> build/copyright
 
+
 build/copyright.h2m: build
 	$(Q)echo "[COPYRIGHT]" > build/copyright.h2m
 	$(Q)echo "This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version." >> build/copyright.h2m
@@ -80,22 +92,21 @@ build/changelog.Debian.gz: build
 	$(Q)declare TAGS=(`git tag`); for ((i=$${#TAGS[@]};i>=0;i--)); do if [ $$i -eq 0 ]; then git log $${TAGS[$$i]} --no-merges --format="gpgmail ($${TAGS[$$i]}-%h) unstable; urgency=medium%n%n  * %s%n    %b%n -- %an <%ae>  %aD%n" | sed "/^\s*$$/d" >> build/changelog; elif [ $$i -eq $${#TAGS[@]} ]; then git log $${TAGS[$$i-1]}..HEAD --no-merges --format="gpgmail ($${TAGS[$$i-1]}-%h) unstable; urgency=medium%n%n  * %s%n    %b%n -- %an <%ae>  %aD%n" | sed "/^\s*$$/d" >> build/changelog; else git log $${TAGS[$$i-1]}..$${TAGS[$$i]} --no-merges --format="gpgmail ($${TAGS[$$i]}-%h) unstable; urgency=medium%n%n  * %s%n    %b%n -- %an <%ae>  %aD%n" | sed "/^\s*$$/d" >> build/changelog; fi; done
 	$(Q)cat build/changelog | gzip -n9 > build/changelog.Debian.gz
 
+
 build/gpgmail.1.gz: build build/copyright.h2m
 	$(Q)help2man ./gpgmail -i build/copyright.h2m -n "Encrypt/Decrypt GPG/MIME emails." | gzip -n9 > build/gpgmail.1.gz
+
 
 build/gpgmail-postfix.1.gz: build build/copyright.h2m
 	$(Q)help2man ./gpgmail-postfix -i build/copyright.h2m -n "Postfix filter script for gpgmail." | gzip -n9 > build/gpgmail-postfix.1.gz
 
+
 build/package/DEBIAN: build
 	$(Q)mkdir -p build/package/DEBIAN
 
+
 build/package/DEBIAN/md5sums: gpgmail gpgmail-postfix build/copyright build/changelog.Debian.gz build/gpgmail.1.gz build/gpgmail-postfix.1.gz build/package/DEBIAN
-	$(Q)install -Dm 0755 gpgmail build/package"${BIN_DIR}"/gpgmail
-	$(Q)install -Dm 0755 gpgmail-postfix build/package"${BIN_DIR}"/gpgmail-postfix
-	$(Q)install -Dm 0644 build/changelog.Debian.gz build/package"${DOC_DIR}"/gpgmail/changelog.Debian.gz
-	$(Q)install -Dm 0644 build/copyright build/package"${DOC_DIR}"/gpgmail/copyright
-	$(Q)install -Dm 0644 build/gpgmail.1.gz build/package"${MAN_DIR}"/man1/gpgmail.1.gz
-	$(Q)install -Dm 0644 build/gpgmail-postfix.1.gz build/package"${MAN_DIR}"/man1/gpgmail-postfix.1.gz
+	$(Q)make install DEST_DIR=build/package
 
 	$(Q)mkdir -p build/package/DEBIAN
 	$(Q)md5sum `find build/package -type f -not -path "*DEBIAN*"` > build/md5sums
@@ -108,7 +119,7 @@ build/package/DEBIAN/control: build/package/DEBIAN/md5sums
 	$(Q)echo "Section: mail" >> build/package/DEBIAN/control
 	$(Q)echo "Priority: optional" >> build/package/DEBIAN/control
 	$(Q)echo "Architecture: all" >> build/package/DEBIAN/control
-	$(Q)echo "Depends: python3 (>= 3.7), python3-gnupg, gnupg" >> build/package/DEBIAN/control
+	$(Q)echo "Depends: python3 (<< 3.11) (>= 3.7), python3-gnupg, gnupg" >> build/package/DEBIAN/control
 	$(Q)echo "Installed-Size: `du -sk build/package/usr | grep -oE "[0-9]+"`" >> build/package/DEBIAN/control
 	$(Q)echo "Maintainer: J. Nathanael Philipp (jnphilipp) <nathanael@philipp.land>" >> build/package/DEBIAN/control
 	$(Q)echo "Homepage: https://github.com/jnphilipp/gpgmail" >> build/package/DEBIAN/control
