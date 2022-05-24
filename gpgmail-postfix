@@ -18,7 +18,7 @@
 
 usage() {
     cat << EOF
-usage: gpgmail-postfix (-d|-e|-s|-E) [-H|-S] [-g PATH] [-k KEYID] [-p PASSPHRASE] [--sendmailpath SENDMAIL_PATH] -r RECIPIENT [SENDMAIL_ARGS]
+usage: gpgmail-postfix (-d|-e|-s|-E) [-H|-S] [-g PATH] [-k KEYID] [-p PASSPHRASE] [-m MAILER_PATH] -r RECIPIENT [MAILER_ARGS]
 
 OPTIONS:
     -d / --decrypt                  Decrypt E-mail
@@ -34,9 +34,9 @@ OPTIONS:
     -p / --passphrase PASSPHRASE    Passphrase for PGP-key
     -r / --recipient RECIPIENT      E-mail recipient
     
-    --sendmailpath SENDMAIL_PATH    Path to sendmail or other mail sending utility
+    -m / --mailer MAILER_PATH       Path to a mail sending utility, defaults to /usr/sbin/sendmail
 
-    SENDMAIL_ARGS                   Arguments passed to sendmail
+    MAILER_ARGS                     Arguments passed to the mail sending utility
 
     -h / --help                     Shows this help message
     -v / --version                  Show prgram version number
@@ -55,7 +55,7 @@ EOF
     exit 0
 }
 
-SENDMAIL=/usr/sbin/sendmail
+MAILER=/usr/sbin/sendmail
 GPGMAIL=/usr/bin/gpgmail
 
 GPGMAIL_command=
@@ -66,29 +66,29 @@ GPGMAIL_encrypt_headers=
 
 RECIPIENT=
 
-SENDMAIL_ARGS=
+MAILER_ARGS=
 
-while true ; do
+while [[ $# -gt 0 ]]; do
     case "$1" in
         -d|--decrypt) [ -n "$GPGMAIL_command" ] && usage || GPGMAIL_command="--decrypt" ; shift ;;
         -e|--encrypt) [ -n "$GPGMAIL_command" ] && usage || GPGMAIL_command="--encrypt" ; shift ;;
         -s|--sign) [ -n "$GPGMAIL_command" ] && usage || GPGMAIL_command="--sign"; shift ;;
         -E|--sign-encrypt) [ -n "$GPGMAIL_command" ] && usage || GPGMAIL_command="--sign-encrypt" ; shift ;;
 
-        -H|--encrypt-headers) [ -n "$GPGMAIL_encrypt_headers" ] && usage || GPGMAIL_encrypt_headers="--encrypt-headers" ; shift ;;
-        -S|--encrypt-subject) [ -n "$GPGMAIL_encrypt_headers" ] && usage || GPGMAIL_encrypt_headers="--encrypt-subject" ; shift ;;
+        -H|--encrypt-headers) [ -n "$GPGMAIL_encrypt_headers" ] && usage || GPGMAIL_encrypt_headers="--encrypt-headers"; shift ;;
+        -S|--encrypt-subject) [ -n "$GPGMAIL_encrypt_headers" ] && usage || GPGMAIL_encrypt_headers="--encrypt-subject"; shift ;;
 
-        -g|--gnupghome) GPGMAIL_gnupghome="--gnupghome=${2}" ; shift 2 ;;
-        -k|--key) GPGMAIL_key="--key=${2}" ; shift 2 ;;
+        -g|--gnupghome) GPGMAIL_gnupghome="--gnupghome=${2}"; shift 2 ;;
+        -k|--key) GPGMAIL_key="--key=${2}"; shift 2 ;;
         -p|--passphrase) GPGMAIL_passphrase="--passphrase=${2}"; shift 2 ;;
         -r|--recipient) RECIPIENT=$2; shift 2 ;;
 
-        --sendmailpath) SENDMAIL="${2}" ; shift 2 ;;
+        -m|--mailer) MAILER=$2; shift 2 ;;
 
         -h|--help) usage ;;
         -v|--version) version ;;
         "") break ;;
-        *) [ -n "$SENDMAIL_ARGS" ] && SENDMAIL_ARGS="${SENDMAIL_ARGS} ${1}" || SENDMAIL_ARGS=$1; shift ;;
+        *) MAILER_ARGS=$@; break ;;
     esac
 done
 
@@ -97,5 +97,5 @@ done
 set -o pipefail
 
 #encrypt and resend directly from stdin
-eval ${GPGMAIL} "${GPGMAIL_command}" "${GPGMAIL_encrypt_headers}" "${GPGMAIL_gnupghome}" "${GPGMAIL_key}" "${GPGMAIL_passphrase}" "${RECIPIENT}" | ${SENDMAIL} "${SENDMAIL_ARGS}" "${RECIPIENT}"
+eval ${GPGMAIL} "${GPGMAIL_command}" "${GPGMAIL_encrypt_headers}" "${GPGMAIL_gnupghome}" "${GPGMAIL_key}" "${GPGMAIL_passphrase}" "${RECIPIENT}" | ${MAILER} "${MAILER_ARGS}" "${RECIPIENT}"
 exit $?
