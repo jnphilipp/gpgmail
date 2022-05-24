@@ -18,7 +18,7 @@
 
 usage() {
     cat << EOF
-usage: gpgmail-postfix (-d|-e|-s|-E) [-H|-S] [-g PATH] [-k KEYID] [-p PASSPHRASE] [-m MAILER_PATH] -r RECIPIENT [MAILER_ARGS]
+usage: gpgmail-postfix (-d|-e|-s|-E) [-H|-S] [-g PATH] [-k KEYID] [-p PASSPHRASE] [-a GPGMAIL_PATH] [-m MAILER_PATH] -r RECIPIENT [MAILER_ARGS]
 
 OPTIONS:
     -d / --decrypt                  Decrypt E-mail
@@ -32,6 +32,7 @@ OPTIONS:
     -g / --gnupghome PATH           Path to gnupg home
     -k / --key KEYID                PGP-key to use
     -p / --passphrase PASSPHRASE    Passphrase for PGP-key
+    -a / --path GPGMAIL_PATH        Path to gpgmail, defaults to /usr/bin/gpgmail
     -r / --recipient RECIPIENT      E-mail recipient
 
     -m / --mailer MAILER_PATH       Path to a mail sending utility, defaults to /usr/sbin/sendmail
@@ -66,11 +67,7 @@ GPGMAIL_encrypt_headers=
 
 RECIPIENT=
 
-<<<<<<< HEAD
-SENDMAIL_ARGS=()
-=======
-MAILER_ARGS=
->>>>>>> networkjanitor-add-sendmail-path-argument
+MAILER_ARGS=()
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -85,6 +82,7 @@ while [[ $# -gt 0 ]]; do
         -g|--gnupghome) GPGMAIL_gnupghome="--gnupghome=${2}"; shift 2 ;;
         -k|--key) GPGMAIL_key="--key=${2}"; shift 2 ;;
         -p|--passphrase) GPGMAIL_passphrase="--passphrase=${2}"; shift 2 ;;
+        -a|--path) GPGMAIL="${2}"; shift 2 ;;
         -r|--recipient) RECIPIENT=$2; shift 2 ;;
 
         -m|--mailer) MAILER=$2; shift 2 ;;
