@@ -31,6 +31,10 @@ deb: test build/package/DEBIAN/control
 	@echo "gpgmail.deb completed."
 
 
+deb-sig: deb
+	$(Q)dpkg-sig -s builder build/gpgmail.deb
+
+
 install: build/copyright build/changelog.Debian.gz build/gpgmail.1.gz build/gpgmail-postfix.1.gz
 	$(Q)install -Dm 0755 gpgmail ${DEST_DIR}${BIN_DIR}/gpgmail
 	$(Q)install -Dm 0755 gpgmail-postfix ${DEST_DIR}${BIN_DIR}/gpgmail-postfix
