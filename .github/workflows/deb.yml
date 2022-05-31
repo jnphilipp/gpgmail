@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: build
-        run: make build
+        run: make deb
       - name: release
         uses: actions/create-release@v1
         id: create_release
@@ -21,8 +21,6 @@ jobs:
           tag_name: ${{ github.ref }}
         env:
           GITHUB_TOKEN: ${{ github.token }}
-
-
       - name: upload deb-package
         uses: actions/upload-release-asset@v1
         env:
