@@ -9,8 +9,13 @@ jobs:
   build_deb:
     runs-on: ubuntu-latest
     steps:
-      - name: build
-        run: make deb
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip wheel
+          pip install -r requirements.txt
+      - name: Build deb
+        run: |
+          make deb
       - name: release
         uses: actions/create-release@v1
         id: create_release
