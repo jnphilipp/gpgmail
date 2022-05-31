@@ -313,13 +313,42 @@ class GPGMailTests(unittest.TestCase):
         encrypted, stderr = p.communicate(input=mail)
         self.assertEqual(mail, encrypted)
 
-    def test_sign_encrypt_decrypt_utf8(self):
         mail = (
             "Return-Path: <alice@example.com>\nReceived: from example.com (example.com "
             + "[127.0.0.1])\n    by example.com (Postfix) with ESMTPSA id E8DB612009F\n"
             + "    for <alice@example.com>; Tue,  7 Jan 2020 19:30:03 +0200 (CEST)\n"
             + 'Content-Type: text/plain; charset="utf-8"\n MIME-Version: 1.0\n'
             + "Content-Transfer-Encoding: 7bit\nSubject: Test\nFrom: alice@example.com"
+            + "\nTo: alice@example.com\nDate: Tue, 07 Jan 2020 19:30:03 -0000\n"
+            + "Message-ID:\n <123456789.123456.123456789@example.com>\n\nFür alle "
+            + "Räuber in der Röhn, es gibt ein neues Café.\nÄÖÜß\n\nZ pśijaśelnym "
+            + "póstrowom\nMit freundlichen Grüßen\ngpgmail"
+        )
+
+        p = Popen(
+            [
+                "./gpgmail",
+                "-e",
+                "alice.do@example.com",
+                "--gnupghome",
+                self.temp_gpg_homedir.name,
+                "-H",
+            ],
+            stdout=PIPE,
+            stdin=PIPE,
+            stderr=PIPE,
+            encoding="utf8",
+        )
+        encrypted, stderr = p.communicate(input=mail)
+        self.assertEqual(mail, encrypted)
+
+    def test_sign_encrypt_decrypt_utf8(self):
+        mail = (
+            "Return-Path: <alice@example.com>\nReceived: from example.com (example.com "
+            + "[127.0.0.1])\n    by example.com (Postfix) with ESMTPSA id E8DB612009F\n"
+            + "    for <alice@example.com>; Tue,  7 Jan 2020 19:30:03 +0200 (CEST)\n"
+            + 'Content-Type: text/plain; charset="utf-8"\n MIME-Version: 1.0\n'
+            + "Content-Transfer-Encoding: 8bit\nSubject: Test\nFrom: alice@example.com"
             + "\nTo: alice@example.com\nDate: Tue, 07 Jan 2020 19:30:03 -0000\n"
             + "Message-ID:\n <123456789.123456.123456789@example.com>\n\nFür alle "
             + "Räuber in der Röhn, es gibt ein neues Café.\nÄÖÜß\n\nZ pśijaśelnym "

@@ -235,7 +235,7 @@ def sign(mail: Message, key: str, passphrase: str = None, gnupghome: str = None)
     gpg = GPG(gnupghome=gnupghome)
     gpg.encoding = "utf-8"
     signature = gpg.sign(
-        re.sub("\r?\n", "\r\n", pmail.as_string()),
+        re.sub(r"\r?\n", "\r\n", pmail.as_string()),
         keyid=key,
         passphrase=passphrase,
         detach=True,
