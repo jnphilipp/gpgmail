@@ -31,11 +31,11 @@ deb: test build/package/DEBIAN/control
 	@echo "gpgmail.deb completed."
 
 
-install: build/copyright build/changelog.gz build/gpgmail.1.gz build/gpgmail-postfix.1.gz
+install: build/copyright build/changelog.Debian.gz build/gpgmail.1.gz build/gpgmail-postfix.1.gz
 	$(Q)install -Dm 0755 gpgmail ${DEST_DIR}${BIN_DIR}/gpgmail
 	$(Q)install -Dm 0755 gpgmail-postfix ${DEST_DIR}${BIN_DIR}/gpgmail-postfix
 
-	$(Q)install -Dm 0644 build/changelog.gz ${DEST_DIR}${DOC_DIR}/gpgmail/changelog.gz
+	$(Q)install -Dm 0644 build/changelog.Debian.gz ${DEST_DIR}${DOC_DIR}/gpgmail/changelog.Debian.gz
 	$(Q)install -Dm 0644 build/copyright ${DEST_DIR}${DOC_DIR}/gpgmail/copyright
 
 	$(Q)install -Dm 0644 build/gpgmail.1.gz ${DEST_DIR}${MAN_DIR}/man1/gpgmail.1.gz
