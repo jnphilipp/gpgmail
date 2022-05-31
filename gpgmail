@@ -211,7 +211,12 @@ def protected_headers_mail(mail: Message) -> Message:
         if "Content-Transfer-Encoding" in mail:
             orig_msg["Content-Transfer-Encoding"] = mail["Content-Transfer-Encoding"]
             del mail["Content-Transfer-Encoding"]
-        orig_msg.set_payload(mail.get_payload())
+
+        if mail.is_multipart():
+            for payload in mail.get_payload():
+                orig_msg.attach(payload)
+        else:
+            orig_msg.set_payload(mail.get_payload())
 
         base_msg.attach(pheaders_msg)
         base_msg.attach(orig_msg)

@@ -414,6 +414,229 @@ class GPGMailTests(unittest.TestCase):
         )
         self.assertIsNotNone(re.fullmatch(regex, decrypted))
 
+    def test_multipart_message(self):
+        mail = (
+            "Return-Path: <alice@example.com>\nReceived: from example.com (example.com "
+            + "[127.0.0.1]) by example.com (Postfix) with ESMTPSA id E8DB612009F for "
+            + "<alice@example.com>; Tue,  7 Jan 2020 19:30:03 +0200 (CEST)\nMessage-ID:"
+            + " <123456789.123456.123456789@example.com>\nSubject: Test\nFrom: "
+            + "alice@example.com\nTo: alice@example.com\nDate: Tue, 07 Jan 2020 "
+            + "19:30:03 -0000\nContent-Type: multipart/alternative;\n"
+            + 'boundary="=-pCGCiOTgoFTJJwVyvskX"\nMIME-Version: 1.0\n\n'
+            + '--=-pCGCiOTgoFTJJwVyvskX\nContent-Type: text/plain; charset="UTF-8"\n'
+            + "Content-Transfer-Encoding: 8bit\n\nThis is a message, with some text."
+            + "\n\nZ pśijaśelnym póstrowom\nMit freundlichen Grüßen\n\ngpgmail\n\n"
+            + '--=-pCGCiOTgoFTJJwVyvskX\nContent-Type: text/html; charset="utf-8"\n'
+            + "Content-Transfer-Encoding: 8bit\n\n<html><head></head><body><div>"
+            + "This is a <b>message</b>, with some <i>text</=\ni>.</div><div><br></div>"
+            + "<div>Z pśijaśelnym póstrowom</div><d=\niv>Mit freundlichen Grüßen</div>"
+            + "<div><br></div><div>gpgmail</div>=\n<div><span></span></div></body>"
+            + "</html>\n\n--=-pCGCiOTgoFTJJwVyvskX--"
+        )
+        msg = (
+            "This is a message, with some text.\n\nZ pśijaśelnym póstrowom\n"
+            + "Mit freundlichen Grüßen\n\ngpgmail"
+        )
+        msg2 = (
+            "<html><head></head><body><div>This is a <b>message</b>, with some <i>text"
+            + "</=\ni>.</div><div><br></div><div>Z pśijaśelnym póstrowom</div><d=\niv>"
+            + "Mit freundlichen Grüßen</div><div><br></div><div>gpgmail</div>=\n<div>"
+            + "<span></span></div></body></html>"
+        )
+
+        p = Popen(
+            [
+                "./gpgmail",
+                "-E",
+                "-H",
+                "alice@example.com",
+                "--gnupghome",
+                self.temp_gpg_homedir.name,
+                "-p",
+                "test",
+            ],
+            stdout=PIPE,
+            stdin=PIPE,
+            stderr=PIPE,
+            encoding="utf8",
+        )
+        encrypted = p.communicate(input=mail)[0]
+        self.assertTrue(msg not in encrypted)
+        self.assertTrue(msg2 not in encrypted)
+
+        p = Popen(
+            [
+                "./gpgmail",
+                "-p",
+                "test",
+                "-d",
+                "--gnupghome",
+                self.temp_gpg_homedir.name,
+            ],
+            stdout=PIPE,
+            stdin=PIPE,
+            stderr=PIPE,
+            encoding="utf8",
+        )
+        decrypted = p.communicate(input=encrypted)[0]
+
+        self.assertTrue(msg in decrypted)
+        self.assertTrue(msg2 in decrypted)
+        regex = (
+            r'Content-Type: multipart/mixed; protected-headers="v1"; '
+            + r'boundary="===============\d+=="\nMIME-Version: 1\.0\nReturn-Path: '
+            + r"<alice@example\.com>\nReceived: from example\.com \(example\.com "
+            + r"\[127\.0\.0\.1\]\) by example\.com \(Postfix\) with ESMTPSA id "
+            + r"E8DB612009F for <alice@example\.com>; Tue,  7 Jan 2020 19:30:03 \+0200 "
+            + r"\(CEST\)\nMessage-ID: <123456789\.123456\.123456789@example\.com>\n"
+            + r"Subject: Test\nFrom: alice@example\.com\nTo: alice@example\.com\nDate: "
+            + r"Tue, 07 Jan 2020 19:30:03 -0000\n\n--===============\d+==\n"
+            + r'Content-Type: text/rfc822-headers; protected-headers="v1"\n'
+            + r"(Content-Disposition: inline\n|Date: Tue, 07 Jan 2020 19:30:03 -0000\n|"
+            + r"From: alice@example\.com\n|Subject: Test\n|To: alice@example\.com\n|"
+            + r"Message-ID: <123456789\.123456\.123456789@example\.com>\n)+\n\n"
+            + r"--===============\d+==\nContent-Type: multipart/alternative;\n\n"
+            + r'boundary="=-pCGCiOTgoFTJJwVyvskX"\nMIME-Version: 1\.0\n\n'
+            + r'--=-pCGCiOTgoFTJJwVyvskX\nContent-Type: text/plain; charset="UTF-8"\n'
+            + r"Content-Transfer-Encoding: 8bit\n\nThis is a message, with some text\."
+            + r"\n\nZ pśijaśelnym póstrowom\nMit freundlichen Grüßen\n\ngpgmail\n\n"
+            + r'--=-pCGCiOTgoFTJJwVyvskX\nContent-Type: text/html; charset="utf-8"\n'
+            + r"Content-Transfer-Encoding: 8bit\n\n<html><head></head><body><div>"
+            + r"This is a <b>message</b>, with some <i>text</=\ni>\.</div><div><br>"
+            + r"</div><div>Z pśijaśelnym póstrowom</div><d=\niv>Mit freundlichen Grüßen"
+            + r"</div><div><br></div><div>gpgmail</div>=\n<div><span></span></div>"
+            + r"</body></html>\n\n--=-pCGCiOTgoFTJJwVyvskX--\n--===============\d+==--"
+            + r"\n"
+        )
+        self.assertIsNotNone(re.fullmatch(regex, decrypted))
+
+        mail = (
+            "Return-Path: <bob@example.com>\nX-Original-To: alice@example.com\n"
+            + "Delivered-To: alice@example.com\nReceived: from example.com (example.com"
+            + " [127.0.0.1]) by example.com (Postfix) with ESMTPSA id E8DB612009F for "
+            + "<alice@example.com>; Tue,  7 Jan 2020 19:30:03 +0200 (CEST)\nMessage-ID:"
+            + " <123456789.123456.123456789@example.com>\nFrom: bob@example.com\nTo: "
+            + "alice@example.com\nDate: Tue,  7 Jan 2020 19:30:03 +0200\nReferences: "
+            + "<123456789.123456.123456789.ABCDEF@example.com>\nContent-Type: "
+            + 'multipart/mixed; boundary="=-spsfm35OzlCD03QPN9Hr"\nMIME-Version: 1.0\n'
+            + "Subject: Fwd: Test\n--=-spsfm35OzlCD03QPN9Hr\nContent-Type: text/plain\n"
+            + "Content-Transfer-Encoding: 7bit\nForwarded Message\n"
+            + "--=-spsfm35OzlCD03QPN9Hr\nContent-Disposition: inline\n"
+            + "Content-Description: Weitergeleitete Nachricht =?UTF-8?Q?=E2=80=93?= "
+            + "Test\nContent-Type: message/rfc822\nReturn-Path: <charlie@example.com>\n"
+            + "Received: from example.com (example.com [127.0.0.1]) by example.com "
+            + "(Postfix) with ESMTPSA id E8DB612009F for <alice@example.com>; Mon,  6 "
+            + "Jan 2020 18:01:10 +0200 (CEST)\nMessage-ID: <123456789.123456.123456789."
+            + "ABCDEF@example.com>\nSubject: Test\nFrom: charlie@example.com\nTo: "
+            + "alice@example.com\nDate: Mon,  6 Jan 2020 18:01:10 +0200\nContent-Type: "
+            + 'multipart/alternative; boundary="=-pCGCiOTgoFTJJwVyvskX"\nMIME-Version: '
+            + '1.0\n--=-pCGCiOTgoFTJJwVyvskX\nContent-Type: text/plain; charset="UTF-8"'
+            + "\nContent-Transfer-Encoding: quoted-printable\nThis is a message, with "
+            + "some text.\nZ p=C5=9Bija=C5=9Belnym p=C3=B3strowom\nMit freundlichen "
+            + "Gr=C3=BC=C3=9Fen\ngpgmail\n--=-pCGCiOTgoFTJJwVyvskX\nContent-Type: "
+            + 'text/html; charset="utf-8"\nContent-Transfer-Encoding: quoted-printable'
+            + "\n<html><head></head><body><div>This is a <b>message</b>, with some "
+            + "<i>text</=\ni>.</div><div><br></div><div>Z p=C5=9Bija=C5=9Belnym "
+            + "p=C3=B3strowom</div><d=\niv>Mit freundlichen Gr=C3=BC=C3=9Fen</div><div>"
+            + "<br></div><div>gpgmail</div>=\n<div><span></span></div></body></html>\n"
+            + "--=-pCGCiOTgoFTJJwVyvskX--\n--=-spsfm35OzlCD03QPN9Hr--"
+        )
+        msg = (
+            "This is a message, with some text.\nZ p=C5=9Bija=C5=9Belnym p=C3=B3strowom"
+            + "\nMit freundlichen Gr=C3=BC=C3=9Fen\ngpgmail"
+        )
+        msg2 = (
+            "<html><head></head><body><div>This is a <b>message</b>, with some <i>text"
+            + "</=\ni>.</div><div><br></div><div>Z p=C5=9Bija=C5=9Belnym p=C3=B3strowom"
+            + "</div><d=\niv>Mit freundlichen Gr=C3=BC=C3=9Fen</div><div><br></div>"
+            + "<div>gpgmail</div>=\n<div><span></span></div></body></html>"
+        )
+        msg3 = "Forwarded Message"
+
+        p = Popen(
+            [
+                "./gpgmail",
+                "-E",
+                "-H",
+                "alice@example.com",
+                "--gnupghome",
+                self.temp_gpg_homedir.name,
+                "-p",
+                "test",
+            ],
+            stdout=PIPE,
+            stdin=PIPE,
+            stderr=PIPE,
+            encoding="utf8",
+        )
+        encrypted = p.communicate(input=mail)[0]
+        self.assertTrue(msg not in encrypted)
+        self.assertTrue(msg2 not in encrypted)
+        self.assertTrue(msg3 not in encrypted)
+
+        p = Popen(
+            [
+                "./gpgmail",
+                "-p",
+                "test",
+                "-d",
+                "--gnupghome",
+                self.temp_gpg_homedir.name,
+            ],
+            stdout=PIPE,
+            stdin=PIPE,
+            stderr=PIPE,
+            encoding="utf8",
+        )
+        decrypted = p.communicate(input=encrypted)[0]
+
+        self.assertTrue(msg in decrypted)
+        self.assertTrue(msg2 in decrypted)
+        self.assertTrue(msg3 in decrypted)
+        regex = (
+            r'Content-Type: multipart/mixed; protected-headers="v1"; '
+            + r'boundary="===============\d+=="\nMIME-Version: 1\.0\nReturn-Path: '
+            + r"<bob@example\.com>\nX-Original-To: alice@example\.com\nDelivered-To: "
+            + r"alice@example\.com\nReceived: from example\.com \(example\.com "
+            + r"\[127\.0\.0\.1\]\) by example\.com \(Postfix\) with ESMTPSA id "
+            + r"E8DB612009F for <alice@example\.com>; Tue,  7 Jan 2020 19:30:03 \+0200 "
+            + r"\(CEST\)\nMessage-ID: <123456789\.123456\.123456789@example\.com>\n"
+            + r"From: bob@example\.com\nTo: alice@example\.com\nDate: Tue,  7 Jan 2020 "
+            + r"19:30:03 \+0200\nReferences: <123456789\.123456\.123456789\.ABCDEF@"
+            + r"example\.com>\nSubject: Fwd: Test\n\n--===============\d+==\n"
+            + r'Content-Type: text/rfc822-headers; protected-headers="v1"\n'
+            + r"Content-Disposition: inline\n(Message-ID: <123456789\.123456\.123456789"
+            + r"@example\.com>\n|From: bob@example\.com\n|Subject: Fwd: Test\n|Date: "
+            + r"Tue,  7 Jan 2020 19:30:03 \+0200\n|References: <123456789\.123456\."
+            + r"123456789\.ABCDEF@example\.com>\n|To: alice@example\.com\n)+\n\n"
+            + r"--===============\d+==\nContent-Type: multipart/mixed; "
+            + r'boundary="=-spsfm35OzlCD03QPN9Hr"\n\n--=-spsfm35OzlCD03QPN9Hr\n'
+            + r"Content-Type: text/plain\nContent-Transfer-Encoding: 7bit\n\n"
+            + r"Forwarded Message\n--=-spsfm35OzlCD03QPN9Hr\nContent-Disposition: "
+            + r"inline\nContent-Description: Weitergeleitete Nachricht "
+            + r"=\?UTF-8\?Q\?=E2=80=93\?= Test\nContent-Type: message/rfc822\n"
+            + r"Return-Path: <charlie@example\.com>\nReceived: from example\.com "
+            + r"\(example\.com \[127\.0\.0\.1\]\) by example\.com \(Postfix\) with "
+            + r"ESMTPSA id E8DB612009F for <alice@example\.com>; Mon,  6 Jan 2020 "
+            + r"18:01:10 \+0200 \(CEST\)\nMessage-ID: <123456789\.123456\.123456789\."
+            + r"ABCDEF@example\.com>\nSubject: Test\nFrom: charlie@example\.com\nTo: "
+            + r"alice@example\.com\nDate: Mon,  6 Jan 2020 18:01:10 \+0200\n"
+            + r'Content-Type: multipart/alternative; boundary="=-pCGCiOTgoFTJJwVyvskX"'
+            + r"\nMIME-Version: 1\.0\n\n\n--=-pCGCiOTgoFTJJwVyvskX\nContent-Type: "
+            + r'text/plain; charset="UTF-8"\nContent-Transfer-Encoding: '
+            + r"quoted-printable\nThis is a message, with some text\.\nZ "
+            + r"p=C5=9Bija=C5=9Belnym p=C3=B3strowom\nMit freundlichen Gr=C3=BC=C3=9Fen"
+            + r"\ngpgmail\n--=-pCGCiOTgoFTJJwVyvskX\nContent-Type: text/html; "
+            + r'charset="utf-8"\nContent-Transfer-Encoding: quoted-printable\n<html>'
+            + r"<head></head><body><div>This is a <b>message</b>, with some <i>text</="
+            + r"\ni>\.</div><div><br></div><div>Z p=C5=9Bija=C5=9Belnym p=C3=B3strowom"
+            + r"</div><d=\niv>Mit freundlichen Gr=C3=BC=C3=9Fen</div><div><br></div>"
+            + r"<div>gpgmail</div>=\n<div><span></span></div></body></html>\n"
+            + r"--=-pCGCiOTgoFTJJwVyvskX--\n--=-spsfm35OzlCD03QPN9Hr--\n\n"
+            + r"--===============\d+==--\n"
+        )
+        self.assertIsNotNone(re.fullmatch(regex, decrypted))
+
 
 if __name__ == "__main__":
     unittest.main()
