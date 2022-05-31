@@ -397,18 +397,18 @@ class GPGMailTests(unittest.TestCase):
         regex = (
             r'Content-Type: multipart/mixed; protected-headers="v1"; boundary="'
             + r'===============\d+=="\nMIME-Version: 1\.0\nReturn-Path: <alice@example'
-            + r"\.com>\nReceived: from example\.com \(example.com \[127\.0\.0\.1\]\)\n"
-            + r"    by example\.com \(Postfix\) with ESMTPSA id E8DB612009F\n    for "
+            + r"\.com>\nReceived: from example\.com \(example.com \[127\.0\.0\.1\]\)\s*"
+            + r"by example\.com \(Postfix\) with ESMTPSA id E8DB612009F\s*for "
             + r"<alice@example\.com>; Tue,  7 Jan 2020 19:30:03 \+0200 \(CEST\)\n"
             + r"Subject: Test\nFrom: alice@example\.com\nTo: alice@example\.com\nDate: "
-            + r"Tue, 07 Jan 2020 19:30:03 -0000\nMessage-ID: \n <123456789\.123456\."
+            + r"Tue, 07 Jan 2020 19:30:03 -0000\nMessage-ID:\s*<123456789\.123456\."
             + r"123456789@example\.com>\n\n--===============\d+==\nContent-Type: text/"
             + r'rfc822-headers; protected-headers="v1"\nContent-Disposition: inline\n'
             + r"(Date: Tue, 07 Jan 2020 19:30:03 -0000\n|Subject: Test\n|From: "
-            + r"alice@example\.com\n|To: alice@example\.com\n|Message-ID: \n"
+            + r"alice@example\.com\n|To: alice@example\.com\n|Message-ID:\s*"
             + r" <123456789\.123456\.123456789@example\.com>\n)+\n\n--==============="
             + r'\d+==\nContent-Type: text/plain; charset="utf-8"\n MIME-Version: 1.0\n'
-            + r"Content-Transfer-Encoding: 7bit\n\nFür alle Räuber in der Röhn, es gibt"
+            + r"Content-Transfer-Encoding: 8bit\n\nFür alle Räuber in der Röhn, es gibt"
             + r" ein neues Café\.\nÄÖÜß\n\nZ pśijaśelnym póstrowom\nMit freundlichen "
             + r"Grüßen\ngpgmail\n--===============\d+==--\n"
         )
