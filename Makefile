@@ -26,9 +26,7 @@ test:
 
 deb: test build/package/DEBIAN/control
 	$(Q)fakeroot dpkg-deb -b build/package build/gpgmail.deb
-	cat build/changelog
 	$(Q)lintian -Ivi build/gpgmail.deb
-	$(Q)dpkg-sig -s builder build/gpgmail.deb
 	@echo "gpgmail.deb completed."
 
 
