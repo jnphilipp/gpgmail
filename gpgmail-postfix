@@ -47,7 +47,7 @@ EOF
 
 version() {
     cat << EOF
-gpgmail-postfix v0.7.0
+gpgmail-postfix v0.7.1
 
 Report bugs to https://github.com/jnphilipp/gpgmail/issues.
 
