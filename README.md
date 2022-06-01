@@ -1,6 +1,7 @@
 # gpgmail
 
-![Tests](https://github.com/jnphilipp/gpgmail/actions/workflows/test.yml/badge.svg)
+[![Tests](https://github.com/jnphilipp/gpgmail/actions/workflows/test.yml/badge.svg)](https://github.com/jnphilipp/gpgmail/actions/workflows/test.yml)
+[![DEB Package](https://github.com/jnphilipp/gpgmail/actions/workflows/deb.yml/badge.svg)](https://github.com/jnphilipp/gpgmail/actions/workflows/deb.yml)
 
 This tool can encrypt and decrypt emails using PGP/MIME. When encrypting,
 the tool preserves all headers in the original email in the encrypted part, and
