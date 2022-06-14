@@ -124,10 +124,6 @@ def encrypt(
     Returns:
      * Encrypted mail as str.
     """
-    content_transfer_encoding = None
-    if "Content-Transfer-Encoding" in mail:
-        content_transfer_encoding = mail["Content-Transfer-Encoding"]
-
     if sign_mail and key:
         pmail = message_from_string(sign(mail, key, passphrase, gnupghome))
     else:
@@ -150,10 +146,6 @@ def encrypt(
                 pgp_msg.add_header(_name=k, _value="...")
     elif encrypt_subject:
         pgp_msg.add_header(_name="Subject", _value="...")
-    if content_transfer_encoding:
-        pgp_msg.add_header(
-            _name="Content-Transfer-Encoding", _value=content_transfer_encoding
-        )
 
     pgp_msg_part1 = Message()
     pgp_msg_part1.add_header(_name="Content-Type", _value="application/pgp-encrypted")
@@ -209,15 +201,17 @@ def protected_headers_mail(mail: Message) -> Message:
         orig_msg = Message()
         if "Content-Type" in mail:
             orig_msg["Content-Type"] = mail["Content-Type"]
-        if "Content-Transfer-Encoding" in mail:
-            orig_msg["Content-Transfer-Encoding"] = mail["Content-Transfer-Encoding"]
-            del mail["Content-Transfer-Encoding"]
 
         if mail.is_multipart():
             for payload in mail.get_payload():
                 orig_msg.attach(payload)
         else:
-            orig_msg.set_payload(mail.get_payload())
+            orig_msg.set_payload(mail.get_payload(decode=True))
+            if mail["Content-Transfer-Encoding"] not in ["quoted-printable", "base64"]:
+                orig_msg["Content-Transfer-Encoding"] = mail[
+                    "Content-Transfer-Encoding"
+                ]
+            del mail["Content-Transfer-Encoding"]
 
         base_msg.attach(pheaders_msg)
         base_msg.attach(orig_msg)
