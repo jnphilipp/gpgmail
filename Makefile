@@ -21,7 +21,7 @@ clean:
 
 
 test:
-	python3 -m unittest
+	$(Q)python3 -m unittest
 
 
 deb: test build/package/DEBIAN/control
