@@ -29,6 +29,7 @@ Encrypted email are not reencrypted. This is check based on the content type.
 
 
 import re
+import traceback
 import sys
 
 from argparse import ArgumentParser, FileType, RawTextHelpFormatter
@@ -340,6 +341,6 @@ if __name__ == "__main__":
                 )
         elif args.sign:
             sys.stdout.write(sign(mail, args.key, args.passphrase, args.gnupghome))
-    except Exception as e:
-        sys.stderr.write(f"{e}\n")
+    except Exception:
+        traceback.print_exc(file=sys.stderr)
         sys.stdout.write(orig_mail)
