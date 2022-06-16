@@ -195,7 +195,6 @@ class GPGMailTests(unittest.TestCase):
             "\nMIME-Version: 1.0\n\nThis is a message, with some text. ÄÖÜäöüßłµøǒšé\n"
             "\nZ pśijaśelnym póstrowom\nMit freundlichen Grüßen\n\ngpgmail"
         )
-
         msg = (
             "This is a message, with some text. ÄÖÜäöüßłµøǒšé\n\nZ pśijaśelnym póstrowo"
             "m\nMit freundlichen Grüßen\n\ngpgmail"
@@ -253,13 +252,12 @@ class GPGMailTests(unittest.TestCase):
         """Test signing."""
         mail = (
             "Return-Path: <alice@example.com>\nReceived: from example.com (example.com "
-            + "[127.0.0.1])\n    by example.com (Postfix) with ESMTPSA id E8DB612009F\n"
-            + "    for <alice@example.com>; Tue,  7 Jan 2020 19:30:03 +0200 (CEST)\n"
-            + 'Content-Type: text/plain; charset="utf-8"\nMIME-Version: 1.0\n'
-            + "Content-Transfer-Encoding: 7bit\nSubject: Test\nFrom: "
-            + "alice@example.com\nTo: alice@example.com\nDate: Tue, 07 Jan 2020 "
-            + "19:30:03 -0000\nMessage-ID:\n <123456789.123456.123456789@example.com>"
-            + "\n\nThis is a test message."
+            "[127.0.0.1])\n    by example.com (Postfix) with ESMTPSA id E8DB612009F\n"
+            "    for <alice@example.com>; Tue,  7 Jan 2020 19:30:03 +0200 (CEST)\n"
+            'Content-Type: text/plain; charset="utf-8"\nMIME-Version: 1.0\nContent-'
+            "Transfer-Encoding: 7bit\nSubject: Test\nFrom: alice@example.com\nTo: alice"
+            "@example.com\nDate: Tue, 07 Jan 2020 19:30:03 -0000\nMessage-ID:\n <123456"
+            "789.123456.123456789@example.com>\n\nThis is a test message."
         )
         msg = "This is a test message."
 
@@ -278,44 +276,86 @@ class GPGMailTests(unittest.TestCase):
             stderr=PIPE,
             encoding="utf8",
         )
-        signed = p.communicate(input=mail)[0]
+        signed, stderr = p.communicate(input=mail)
+        self.assertIn(msg, signed)
+        self.assertEqual("", stderr)
 
-        self.assertTrue(msg in signed)
         regex = (
-            r"Content-Type: multipart/signed; micalg=\"pgp-sha512\"; "
-            + r"protocol=\"application/pgp-signature\"; "
-            + r"boundary=\"===============\d+==\"\nMIME-Version: 1\.0\n"
-            + r"Return-Path: <alice@example\.com>\nReceived: from "
-            + r"example\.com \(example\.com \[127\.0\.0\.1\]\)\n    by "
-            + r"example\.com \(Postfix\) with ESMTPSA id E8DB612009F\n    "
-            + r"for <alice@example\.com>; Tue,  7 Jan 2020 19:30:03 \+0200 "
-            + r"\(CEST\)\nSubject: Test\nFrom: alice@example\.com\nTo: "
-            + r"alice@example\.com\nDate: Tue, 07 Jan 2020 19:30:03 "
-            + r"-0000\nMessage-ID: \n <123456789\.123456\.123456789@example"
-            + r"\.com>\n\n--===============\d+==\nContent-Type: "
-            + r"multipart/mixed; protected-headers=\"v1\"; "
-            + r"boundary=\"===============\d+==\"\nMIME-Version: 1\.0\n"
-            + r"Return-Path: <alice@example\.com>\nReceived: from "
-            + r"example\.com \(example\.com \[127\.0\.0\.1\]\)\n    by "
-            + r"example.com \(Postfix\) with ESMTPSA id E8DB612009F\n    for"
-            + r" <alice@example\.com>; Tue,  7 Jan 2020 19:30:03 \+0200 "
-            + r"\(CEST\)\nSubject: Test\nFrom: alice@example.com\nTo: "
-            + r"alice@example\.com\nDate: Tue, 07 Jan 2020 19:30:03 -0000\n"
-            + r"Message-ID: \n <123456789\.123456\.123456789@example\.com>\n"
-            + r"\n--===============\d+==\nContent-Type: text/rfc822-headers;"
-            + r" protected-headers=\"v1\"\nContent-Disposition: inline\n"
-            + r"(Date: Tue, 07 Jan 2020 19:30:03 -0000\n|Subject: Test\n|"
-            + r"From: alice@example\.com\n|To: alice@example\.com\n|"
-            + r"Message-ID: \n <123456789\.123456\.123456789@example\.com>\n"
-            + r")+\n\n--===============\d+==\nContent-Type: text/plain; "
-            + r"charset=\"utf-8\"\nContent-Transfer-Encoding: 7bit\n\nThis "
-            + r"is a test message\.\n--===============\d+==--\n\n"
-            + r"--===============\d+==\nContent-Type: application/pgp-"
-            + r"signature; name=\"signature\.asc\"\nContent-Description: "
-            + r"OpenPGP digital signature\nContent-Disposition: attachment; "
-            + r"filename=\"signature\.asc\"\n\n-----BEGIN PGP SIGNATURE-----"
-            + r"\n\n[\w\+/\n=]+-----END PGP SIGNATURE-----\n\n"
-            + r"--===============\d+==--\n"
+            r"Content-Type: multipart/signed; micalg=\"pgp-sha512\"; protocol=\""
+            r"application/pgp-signature\"; boundary=\"=+\d+==\"\nMIME-Version: 1\.0\n"
+            r"Return-Path: <alice@example\.com>\nReceived: from example\.com \(example"
+            r"\.com \[127\.0\.0\.1\]\)\s+by example\.com \(Postfix\) with ESMTPSA id "
+            r"E8DB612009F\s+for <alice@example\.com>; Tue,  7 Jan 2020 19:30:03 \+0200 "
+            r"\(CEST\)\nSubject: Test\nFrom: alice@example\.com\nTo: alice@example\.com"
+            r"\nDate: Tue, 07 Jan 2020 19:30:03 -0000\nMessage-ID: \n <123456789\."
+            r"123456\.123456789@example\.com>\n\n--=+\d+==\nContent-Type: multipart/"
+            r"mixed; protected-headers=\"v1\"; boundary=\"=+\d+==\"\nMIME-Version: 1\.0"
+            r"\nReturn-Path: <alice@example\.com>\nReceived: from example\.com \("
+            r"example\.com \[127\.0\.0\.1\]\)\s+by example.com \(Postfix\) with ESMTPSA"
+            r" id E8DB612009F\s+for <alice@example\.com>; Tue,  7 Jan 2020 19:30:03 "
+            r"\+0200 \(CEST\)\nSubject: Test\nFrom: alice@example.com\nTo: alice@"
+            r"example\.com\nDate: Tue, 07 Jan 2020 19:30:03 -0000\nMessage-ID:\s+<"
+            r"123456789\.123456\.123456789@example\.com>\n\n--=+\d+==\nContent-Type: "
+            r"text/rfc822-headers; protected-headers=\"v1\"\nContent-Disposition: "
+            r"inline\n(Date: Tue, 07 Jan 2020 19:30:03 -0000\n|Subject: Test\n|From: "
+            r"alice@example\.com\n|To: alice@example\.com\n|Message-ID:\s+<123456789\."
+            r"123456\.123456789@example\.com>\n)+\n\n--=+\d+==\nContent-Type: text/"
+            r"plain; charset=\"utf-8\"\nContent-Transfer-Encoding: 7bit\n\nThis is a "
+            r"test message\.\n--=+\d+==--\n\n--=+\d+==\nContent-Type: application/pgp-"
+            r"signature; name=\"signature\.asc\"\nContent-Description: OpenPGP digital "
+            r"signature\nContent-Disposition: attachment; filename=\"signature\.asc\"\n"
+            r"\n-----BEGIN PGP SIGNATURE-----[\w\+/\n=]+-----END PGP SIGNATURE-----\n\n"
+            r"--=+\d+==--\n"
+        )
+        self.assertIsNotNone(re.fullmatch(regex, signed))
+
+        mail = (
+            "From: <mail@sender.com>\nTo: <mail@example.com>\nSubject: Test\nDate: "
+            'Thu, 27 Jun 2019 09:42:57 +0200\nContent-Type: text/plain; charset="UTF-8"'
+            "\nMIME-Version: 1.0\n\nThis is a message, with some text. ÄÖÜäöüßłµøǒšé\n"
+            "\nZ pśijaśelnym póstrowom\nMit freundlichen Grüßen\n\ngpgmail"
+        )
+        msg = (
+            "This is a message, with some text. ÄÖÜäöüßłµøǒšé\n\nZ pśijaśelnym póstrowo"
+            "m\nMit freundlichen Grüßen\n\ngpgmail"
+        )
+
+        p = Popen(
+            [
+                "./gpgmail",
+                "-s",
+                "alice@example.com",
+                "--gnupghome",
+                self.temp_gpg_homedir.name,
+                "-p",
+                "test",
+            ],
+            stdout=PIPE,
+            stdin=PIPE,
+            stderr=PIPE,
+            encoding="utf8",
+        )
+        signed, stderr = p.communicate(input=mail)
+        self.assertIn(msg, signed)
+        self.assertEqual("", stderr)
+
+        regex = (
+            r'Content-Type: multipart/signed; micalg="pgp-sha512"; protocol="applicatio'
+            r'n/pgp-signature"; boundary="=+\d+=="\nMIME-Version: 1\.0\nFrom: <mail@sen'
+            r"der\.com>\nTo: <mail@example\.com>\nSubject: Test\nDate: Thu, 27 Jun 2019"
+            r" 09:42:57 \+0200\n\n--=+\d+==\nContent-Type: multipart/mixed; protected-h"
+            r'eaders="v1"; boundary="=+\d+=="\nMIME-Version: 1\.0\nFrom: <mail@sender\.'
+            r"com>\nTo: <mail@example\.com>\nSubject: Test\nDate: Thu, 27 Jun 2019 09:4"
+            r"2:57 \+0200\n\n--=+\d+==\nContent-Type: text/rfc822-headers; protected-he"
+            r'aders="v1"\nContent-Disposition: inline\n(Date: Thu, 27 Jun 2019 09:42:57'
+            r" \+0200\n|Subject: Test\n|To: <mail@example\.com>\n|From: <mail@sender\.c"
+            r'om>\n)+\n\n--=+\d+==\nContent-Type: text/plain; charset="UTF-8"\n\nThis i'
+            r"s a message, with some text\. ÄÖÜäöüßłµøǒšé\n\nZ pśijaśelnym póstrowom\nM"
+            r"it freundlichen Grüßen\n\ngpgmail\n--=+\d+==--\n\n--=+\d+==\nContent-Type"
+            r': application/pgp-signature; name="signature\.asc"\nContent-Description: '
+            r'OpenPGP digital signature\nContent-Disposition: attachment; filename="sig'
+            r'nature\.asc"\n\n-----BEGIN PGP SIGNATURE-----[\w\+/\n=]+-----END PGP SIGN'
+            r"ATURE-----\n\n--=+\d+==--\n"
         )
         self.assertIsNotNone(re.fullmatch(regex, signed))
 
@@ -323,13 +363,13 @@ class GPGMailTests(unittest.TestCase):
         """Test signing, encryption and decryption."""
         mail = (
             "Return-Path: <alice@example.com>\nReceived: from example.com (example.com "
-            + "[127.0.0.1])\n    by example.com (Postfix) with ESMTPSA id E8DB612009F\n"
-            + "    for <alice@example.com>; Tue,  7 Jan 2020 19:30:03 +0200 (CEST)\n"
-            + 'Content-Type: text/plain; charset="utf-8"\n MIME-Version: 1.0\n'
-            + "Content-Transfer-Encoding: 7bit\nSubject: Test\nFrom: alice@example.com"
-            + "\nTo: alice@example.com\nDate: Tue, 07 Jan 2020 19:30:03 -0000\n"
-            + "Message-ID:\n <123456789.123456.123456789@example.com>\n\nThis is a "
-            + "test message."
+            "[127.0.0.1])\n    by example.com (Postfix) with ESMTPSA id E8DB612009F\n"
+            "    for <alice@example.com>; Tue,  7 Jan 2020 19:30:03 +0200 (CEST)\n"
+            'Content-Type: text/plain; charset="utf-8"\n MIME-Version: 1.0\n'
+            "Content-Transfer-Encoding: 7bit\nSubject: Test\nFrom: alice@example.com"
+            "\nTo: alice@example.com\nDate: Tue, 07 Jan 2020 19:30:03 -0000\n"
+            "Message-ID:\n <123456789.123456.123456789@example.com>\n\nThis is a "
+            "test message."
         )
         msg = "This is a test message."
 
@@ -348,8 +388,9 @@ class GPGMailTests(unittest.TestCase):
             stderr=PIPE,
             encoding="utf8",
         )
-        encrypted = p.communicate(input=mail)[0]
-        self.assertTrue(msg not in encrypted)
+        encrypted, stderr = p.communicate(input=mail)
+        self.assertNotIn(msg, encrypted)
+        self.assertEqual("", stderr)
 
         p = Popen(
             [
@@ -365,9 +406,10 @@ class GPGMailTests(unittest.TestCase):
             stderr=PIPE,
             encoding="utf8",
         )
-        decrypted = p.communicate(input=encrypted)[0]
+        decrypted, stderr = p.communicate(input=encrypted)
+        self.assertIn(msg, decrypted)
+        self.assertEqual("", stderr)
 
-        self.assertTrue(msg in decrypted)
         regex = (
             r'Content-Type: multipart/mixed; protected-headers="v1"; boundary="'
             + r'===============\d+=="\nMIME-Version: 1\.0\nReturn-Path: <alice@example'
@@ -543,13 +585,13 @@ class GPGMailTests(unittest.TestCase):
         """Test encryption fails."""
         mail = (
             "Return-Path: <alice@example.com>\nReceived: from example.com (example.com "
-            + "[127.0.0.1])\n    by example.com (Postfix) with ESMTPSA id E8DB612009F\n"
-            + "    for <alice@example.com>; Tue,  7 Jan 2020 19:30:03 +0200 (CEST)\n"
-            + 'Content-Type: text/plain; charset="utf-8"\nMIME-Version: 1.0\n'
-            + "Content-Transfer-Encoding: 7bit\nSubject: Test\nFrom: alice@example.com"
-            + "\nTo: alice@example.com\nDate: Tue, 07 Jan 2020 19:30:03 -0000\n"
-            + "Message-ID: <123456789.123456.123456789@example.com>\n\nThis is a "
-            + "test message."
+            "[127.0.0.1])\n    by example.com (Postfix) with ESMTPSA id E8DB612009F\n"
+            "    for <alice@example.com>; Tue,  7 Jan 2020 19:30:03 +0200 (CEST)\n"
+            'Content-Type: text/plain; charset="utf-8"\nMIME-Version: 1.0\n'
+            "Content-Transfer-Encoding: 7bit\nSubject: Test\nFrom: alice@example.com"
+            "\nTo: alice@example.com\nDate: Tue, 07 Jan 2020 19:30:03 -0000\n"
+            "Message-ID: <123456789.123456.123456789@example.com>\n\nThis is a "
+            "test message."
         )
 
         p = Popen(
@@ -576,14 +618,13 @@ class GPGMailTests(unittest.TestCase):
 
         mail = (
             "Return-Path: <alice@example.com>\nReceived: from example.com (example.com "
-            + "[127.0.0.1])\n    by example.com (Postfix) with ESMTPSA id E8DB612009F\n"
-            + "    for <alice@example.com>; Tue,  7 Jan 2020 19:30:03 +0200 (CEST)\n"
-            + 'Content-Type: text/plain; charset="utf-8"\nMIME-Version: 1.0\n'
-            + "Content-Transfer-Encoding: 8bit\nSubject: Test\nFrom: alice@example.com"
-            + "\nTo: alice@example.com\nDate: Tue, 07 Jan 2020 19:30:03 -0000\n"
-            + "Message-ID: <123456789.123456.123456789@example.com>\n\nFür alle "
-            + "Räuber in der Röhn, es gibt ein neues Café.\nÄÖÜß\n\nZ pśijaśelnym "
-            + "póstrowom\nMit freundlichen Grüßen\ngpgmail"
+            "[127.0.0.1])\n    by example.com (Postfix) with ESMTPSA id E8DB612009F\n  "
+            "  for <alice@example.com>; Tue,  7 Jan 2020 19:30:03 +0200 (CEST)\nContent"
+            '-Type: text/plain; charset="utf-8"\nMIME-Version: 1.0\nContent-Transfer-En'
+            "coding: 8bit\nSubject: Test\nFrom: alice@example.com\nTo: alice@example.co"
+            "m\nDate: Tue, 07 Jan 2020 19:30:03 -0000\nMessage-ID: <123456789.123456.12"
+            "3456789@example.com>\n\nFür alle Räuber in der Röhn, es gibt ein neues Caf"
+            "é.\nÄÖÜß\n\nZ pśijaśelnym póstrowom\nMit freundlichen Grüßen\ngpgmail"
         )
 
         p = Popen(
@@ -612,18 +653,17 @@ class GPGMailTests(unittest.TestCase):
         """Test signing, encryption and decryption with utf8 encoding."""
         mail = (
             "Return-Path: <alice@example.com>\nReceived: from example.com (example.com "
-            + "[127.0.0.1])\n    by example.com (Postfix) with ESMTPSA id E8DB612009F\n"
-            + "    for <alice@example.com>; Tue,  7 Jan 2020 19:30:03 +0200 (CEST)\n"
-            + 'Content-Type: text/plain; charset="utf-8"\n MIME-Version: 1.0\n'
-            + "Content-Transfer-Encoding: 8bit\nSubject: Test\nFrom: alice@example.com"
-            + "\nTo: alice@example.com\nDate: Tue, 07 Jan 2020 19:30:03 -0000\n"
-            + "Message-ID:\n <123456789.123456.123456789@example.com>\n\nFür alle "
-            + "Räuber in der Röhn, es gibt ein neues Café.\nÄÖÜß\n\nZ pśijaśelnym "
-            + "póstrowom\nMit freundlichen Grüßen\ngpgmail"
+            "[127.0.0.1])\n    by example.com (Postfix) with ESMTPSA id E8DB612009F\n  "
+            "  for <alice@example.com>; Tue,  7 Jan 2020 19:30:03 +0200 (CEST)\nContent"
+            '-Type: text/plain; charset="utf-8"\nMIME-Version: 1.0\nSubject: Test\nFrom'
+            ": alice@example.com\nTo: alice@example.com\nDate: Tue, 07 Jan 2020 19:30:0"
+            "3 -0000\nMessage-ID:\n <123456789.123456.123456789@example.com>\n\nFür all"
+            "e Räuber in der Röhn, es gibt ein neues Café.\nÄÖÜß\n\nZ pśijaśelnym póstr"
+            "owom\nMit freundlichen Grüßen\ngpgmail"
         )
         msg = (
-            "Für alle Räuber in der Röhn, es gibt ein neues Café.\nÄÖÜß\n\n"
-            + "Z pśijaśelnym póstrowom\nMit freundlichen Grüßen\ngpgmail"
+            "Für alle Räuber in der Röhn, es gibt ein neues Café.\nÄÖÜß\n\nZ pśijaśelny"
+            "m póstrowom\nMit freundlichen Grüßen\ngpgmail"
         )
 
         p = Popen(
@@ -641,8 +681,9 @@ class GPGMailTests(unittest.TestCase):
             stderr=PIPE,
             encoding="utf8",
         )
-        encrypted = p.communicate(input=mail)[0]
-        self.assertTrue(msg not in encrypted)
+        encrypted, stderr = p.communicate(input=mail)
+        self.assertNotIn(msg, encrypted)
+        self.assertEqual("", stderr)
 
         p = Popen(
             [
@@ -658,26 +699,24 @@ class GPGMailTests(unittest.TestCase):
             stderr=PIPE,
             encoding="utf8",
         )
-        decrypted = p.communicate(input=encrypted)[0]
+        decrypted, stderr = p.communicate(input=encrypted)
+        self.assertIn(msg, decrypted)
+        self.assertEqual("", stderr)
 
-        self.assertTrue(msg in decrypted)
         regex = (
-            r'Content-Type: multipart/mixed; protected-headers="v1"; boundary="'
-            + r'===============\d+=="\nMIME-Version: 1\.0\nReturn-Path: <alice@example'
-            + r"\.com>\nReceived: from example\.com \(example.com \[127\.0\.0\.1\]\)\s*"
-            + r"by example\.com \(Postfix\) with ESMTPSA id E8DB612009F\s*for "
-            + r"<alice@example\.com>; Tue,  7 Jan 2020 19:30:03 \+0200 \(CEST\)\n"
-            + r"Subject: Test\nFrom: alice@example\.com\nTo: alice@example\.com\nDate: "
-            + r"Tue, 07 Jan 2020 19:30:03 -0000\nMessage-ID:\s*<123456789\.123456\."
-            + r"123456789@example\.com>\n\n--===============\d+==\nContent-Type: text/"
-            + r'rfc822-headers; protected-headers="v1"\nContent-Disposition: inline\n'
-            + r"(Date: Tue, 07 Jan 2020 19:30:03 -0000\n|Subject: Test\n|From: "
-            + r"alice@example\.com\n|To: alice@example\.com\n|Message-ID:\s*"
-            + r" <123456789\.123456\.123456789@example\.com>\n)+\n\n--==============="
-            + r'\d+==\nContent-Type: text/plain; charset="utf-8"\n MIME-Version: 1.0\n'
-            + r"Content-Transfer-Encoding: 8bit\n\nFür alle Räuber in der Röhn, es gibt"
-            + r" ein neues Café\.\nÄÖÜß\n\nZ pśijaśelnym póstrowom\nMit freundlichen "
-            + r"Grüßen\ngpgmail\n--===============\d+==--\n"
+            r'Content-Type: multipart/mixed; protected-headers="v1"; boundary="=+\d+=="'
+            r"\nMIME-Version: 1\.0\nReturn-Path: <alice@example\.com>\nReceived: from e"
+            r"xample\.com \(example\.com \[127\.0\.0\.1\]\)\s+by example\.com \(Postfix"
+            r"\) with ESMTPSA id E8DB612009F\s+for <alice@example\.com>; Tue,  7 Jan 20"
+            r"20 19:30:03 \+0200 \(CEST\)\nSubject: Test\nFrom: alice@example\.com\nTo:"
+            r" alice@example\.com\nDate: Tue, 07 Jan 2020 19:30:03 -0000\nMessage-ID:"
+            r"\s+<[\d\.]+@example\.com>\n\n--=+\d+==\nContent-Type: text/rfc822-headers"
+            r'; protected-headers="v1"\nContent-Disposition: inline\n(Message-ID:\s+<'
+            r"[\d\.]+@example\.com>\n|To: alice@example.com\n|Subject: Test\n|Date: Tue"
+            r", 07 Jan 2020 19:30:03 -0000\n|From: alice@example.com\n)+\n\n--=+\d+==\n"
+            r'Content-Type: text/plain; charset="utf-8"\n\nFür alle Räuber in der Röhn,'
+            r" es gibt ein neues Café\.\nÄÖÜß\n\nZ pśijaśelnym póstrowom\nMit freundlic"
+            r"hen Grüßen\ngpgmail\n--=+\d+==--\n"
         )
         self.assertIsNotNone(re.fullmatch(regex, decrypted))
 
