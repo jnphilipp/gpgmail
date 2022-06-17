@@ -32,7 +32,7 @@ import re
 import sys
 
 from argparse import ArgumentParser, FileType, RawTextHelpFormatter
-from email import message_from_string
+from email import message_from_bytes
 from email.message import Message
 from email.mime.base import MIMEBase
 from gnupg import GPG
@@ -128,7 +128,7 @@ def encrypt(
         content_transfer_encoding = mail["Content-Transfer-Encoding"]
 
     if sign_mail and key:
-        pmail = message_from_string(sign(mail, key, passphrase, gnupghome))
+        pmail = message_from_bytes(sign(mail, key, passphrase, gnupghome))
     else:
         pmail = protected_headers_mail(mail)
     gpg = GPG(gnupghome=gnupghome)
@@ -287,9 +287,9 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "MAIL",
-        type=FileType("r", encoding="utf8"),
+        type=FileType("rb"),
         nargs="?",
-        default=sys.stdin,
+        default=sys.stdin.buffer,
         help="E-mail, default from stdin.",
     )
 
@@ -319,7 +319,7 @@ if __name__ == "__main__":
 
     orig_mail = args.MAIL.read()
     try:
-        mail = message_from_string(orig_mail)
+        mail = message_from_bytes(orig_mail)
         if args.decrypt:
             sys.stdout.write(decrypt(mail, args.gnupghome, passphrase=args.passphrase))
         elif args.encrypt or args.sign_encrypt:
