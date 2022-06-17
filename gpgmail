@@ -205,6 +205,10 @@ def protected_headers_mail(mail: Message) -> Message:
         if mail.is_multipart():
             for payload in mail.get_payload():
                 orig_msg.attach(payload)
+            if "Content-Transfer-Encoding" in mail and mail[
+                "Content-Transfer-Encoding"
+            ] in ["quoted-printable", "base64"]:
+                del mail["Content-Transfer-Encoding"]
         else:
             orig_msg.set_payload(
                 mail.get_payload(decode="Content-Transfer-Encoding" in mail)
