@@ -150,6 +150,7 @@ class GPGMailTests(unittest.TestCase):
             encoding="utf8",
         )
         encrypted, stderr = p.communicate(input=mail)
+        print(encrypted, stderr)
         self.assertNotIn(msg, encrypted)
         self.assertEqual("", stderr)
 
