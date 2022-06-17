@@ -96,7 +96,7 @@ done
 while [[ $# -gt 0 ]]; do
     case "$1" in
         "") break ;;
-        *) SENDMAIL_ARGS+=("${1}"); shift ;;
+        *) MAILER_ARGS+=("${1}"); shift ;;
     esac
 done
 
