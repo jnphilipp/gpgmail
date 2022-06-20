@@ -1,5 +1,8 @@
 # gpgmail
 
+[![Tests](https://github.com/jnphilipp/gpgmail/actions/workflows/test.yml/badge.svg)](https://github.com/jnphilipp/gpgmail/actions/workflows/test.yml)
+[![DEB Package](https://github.com/jnphilipp/gpgmail/actions/workflows/deb.yml/badge.svg)](https://github.com/jnphilipp/gpgmail/actions/workflows/deb.yml)
+
 This tool can encrypt and decrypt emails using PGP/MIME. When encrypting,
 the tool preserves all headers in the original email in the encrypted part, and
 copies relevant headers to the output. When decrypting, any headers are
@@ -11,14 +14,14 @@ Encrypted email are not reencrypted. This is check based on the content type.
 ## Requirements
 
 * Python 3.7 or newer
-* pythond-gnupg
+* python-gnupg
 * gnupg
 
 
 ## Install
 
 * from Source: ```make install```
-* deb-Packet: ```make deb```
+* deb-Package: ```make deb```
 
 
 ## Usage

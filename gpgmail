@@ -29,13 +29,13 @@ Encrypted email are not reencrypted. This is check based on the content type.
 
 
 import re
+import traceback
 import sys
 
 from argparse import ArgumentParser, FileType, RawTextHelpFormatter
-from email import message_from_string
-from email.message import EmailMessage
-from email.mime.base import MIMEBase
-from email.policy import SMTPUTF8
+from email import message_from_bytes
+from email.message import EmailMessage, MIMEPart
+from email.policy import default
 from gnupg import GPG
 from typing import List
 
@@ -43,7 +43,7 @@ from typing import List
 __author__ = "J. Nathanael Philipp"
 __email__ = "nathanael@philipp.land"
 __license__ = "GPLv3"
-__version__ = "0.6.2"
+__version__ = "0.7.1"
 __github__ = "https://github.com/jnphilipp/gpgmail"
 VERSION = (
     f"%(prog)s v{__version__}\n\nReport bugs to {__github__}/issues."
@@ -80,7 +80,22 @@ def copy_headers(source: EmailMessage, target: EmailMessage) -> EmailMessage:
     return target
 
 
-def decrypt(mail: EmailMessage, gnupghome: str = None, **kwargs) -> str:
+def as_bytes(mail: EmailMessage) -> bytes:
+    """Convert a message to bytes.
+
+    Args:
+     * mail: message to convert
+
+    Return:
+     * Message as bytes.
+    """
+    try:
+        return mail.as_bytes()
+    except UnicodeEncodeError:
+        return mail.as_string(maxheaderlen=60).encode("utf8")
+
+
+def decrypt(mail: EmailMessage, gnupghome: str = None, **kwargs) -> bytes:
     """Decrypt mail.
 
     Args:
@@ -89,14 +104,13 @@ def decrypt(mail: EmailMessage, gnupghome: str = None, **kwargs) -> str:
      * **kwargs: additional arguments for decryption
 
     Returns:
-     * Decrypted mail as str.
+     * Decrypted mail as bytes.
     """
     gpg = GPG(gnupghome=gnupghome)
-    gpg.encoding = "utf-8"
-    decrypted = gpg.decrypt(mail.as_string(), **kwargs)
+    decrypted = gpg.decrypt(as_bytes(mail), **kwargs)
     if not decrypted.ok:
         raise RuntimeError(f"Could not decrypt message: {decrypted.status}")
-    return str(decrypted)
+    return decrypted.data
 
 
 def encrypt(
@@ -108,7 +122,7 @@ def encrypt(
     encrypt_headers: bool = False,
     encrypt_subject: bool = False,
     gnupghome: str = None,
-) -> str:
+) -> bytes:
     """Encrypt mail.
 
     Args:
@@ -122,27 +136,27 @@ def encrypt(
      * gnupghome: optional GnuPGP home folder
 
     Returns:
-     * Encrypted mail as str.
+     * Encrypted mail as bytes.
     """
-    content_transfer_encoding = None
-    if "Content-Transfer-Encoding" in mail:
-        content_transfer_encoding = mail["Content-Transfer-Encoding"]
-
     if sign_mail and key:
-        pmail = message_from_string(
-            sign(mail, key, passphrase, gnupghome), policy=SMTPUTF8
+        pmail = message_from_bytes(
+            sign(mail, key, passphrase, gnupghome), policy=default
         )
     else:
         pmail = protected_headers_mail(mail)
     gpg = GPG(gnupghome=gnupghome)
-    gpg.encoding = "utf-8"
-    encrypted = gpg.encrypt(pmail.as_string(), recipients)
+    encrypted = gpg.encrypt(as_bytes(pmail), recipients)
     if not encrypted.ok:
         raise RuntimeError(f"Could not encrypt message: {encrypted.status}")
 
-    pgp_msg = MIMEBase(
-        _maintype="multipart",
-        _subtype="encrypted",
+    pgp_msg = EmailMessage()
+    #     _maintype="multipart",
+    #     _subtype="encrypted",
+    #     protocol="application/pgp-encrypted",
+    # )
+    pgp_msg.add_header(
+        _name="Content-Type",
+        _value="multipart/encrypted",
         protocol="application/pgp-encrypted",
     )
     if encrypt_headers:
@@ -152,19 +166,15 @@ def encrypt(
                 pgp_msg.add_header(_name=k, _value="...")
     elif encrypt_subject:
         pgp_msg.add_header(_name="Subject", _value="...")
-    if content_transfer_encoding:
-        pgp_msg.add_header(
-            _name="Content-Transfer-Encoding", _value=content_transfer_encoding
-        )
 
-    pgp_msg_part1 = EmailMessage()
+    pgp_msg_part1 = MIMEPart()
     pgp_msg_part1.add_header(_name="Content-Type", _value="application/pgp-encrypted")
     pgp_msg_part1.add_header(
         _name="Content-Description", _value="PGP/MIME version identification"
     )
     pgp_msg_part1.set_content("Version: 1\n")
 
-    pgp_msg_part2 = EmailMessage()
+    pgp_msg_part2 = MIMEPart()
     pgp_msg_part2.add_header(
         _name="Content-Type", _value="application/octet-stream", name="encrypted.asc"
     )
@@ -178,7 +188,7 @@ def encrypt(
 
     pgp_msg.attach(pgp_msg_part1)
     pgp_msg.attach(pgp_msg_part2)
-    return copy_headers(pmail, pgp_msg).as_string()
+    return as_bytes(copy_headers(pmail, pgp_msg))
 
 
 def protected_headers_mail(mail: EmailMessage) -> EmailMessage:
@@ -193,11 +203,14 @@ def protected_headers_mail(mail: EmailMessage) -> EmailMessage:
     if "Content-Type" not in mail or (
         "Content-Type" in mail and 'protected-headers="v1"' not in mail["Content-Type"]
     ):
-        base_msg = MIMEBase(
-            _maintype="multipart", _subtype="mixed", protected_headers="v1"
+        base_msg = MIMEPart()
+        base_msg.add_header(
+            _name="Content-Type", _value="multipart/mixed", protected_headers="v1"
         )
+        #     _maintype="multipart", _subtype="mixed", protected_headers="v1"
+        # )
 
-        pheaders_msg = EmailMessage()
+        pheaders_msg = MIMEPart()
         pheaders_msg.add_header(
             _name="Content-Type", _value="text/rfc822-headers", protected_headers="v1"
         )
@@ -208,21 +221,38 @@ def protected_headers_mail(mail: EmailMessage) -> EmailMessage:
             if k.lower() in keys:
                 pheaders_msg.add_header(_name=k, _value=mail[k])
 
-        orig_msg = EmailMessage()
+        orig_msg = MIMEPart()
         if "Content-Type" in mail:
             orig_msg["Content-Type"] = mail["Content-Type"]
-        if "Content-Transfer-Encoding" in mail:
-            orig_msg["Content-Transfer-Encoding"] = mail["Content-Transfer-Encoding"]
-            del mail["Content-Transfer-Encoding"]
-        orig_msg.set_content(mail.get_content())
+        if mail.get_charset():
+            orig_msg.set_charset(mail.get_charset())
 
-        base_msg.attach(pheaders_msg)
-        base_msg.attach(orig_msg)
+        if mail.is_multipart():
+            for payload in mail.get_payload():
+                orig_msg.attach(payload)
+            # if "Content-Transfer-Encoding" in mail and mail[
+            #     "Content-Transfer-Encoding"
+            # ] in ["quoted-printable", "base64"]:
+            #     del mail["Content-Transfer-Encoding"]
+        else:
+            orig_msg.set_content(mail.get_content())
+            # if "Content-Transfer-Encoding" in mail and mail[
+            #     "Content-Transfer-Encoding"
+            # ] not in ["quoted-printable", "base64"]:
+            #     orig_msg["Content-Transfer-Encoding"] = mail[
+            #         "Content-Transfer-Encoding"
+            #     ]
+            # del mail["Content-Transfer-Encoding"]
+
+        base_msg.add_attachment(pheaders_msg)
+        base_msg.add_attachment(orig_msg)
         return copy_headers(mail, base_msg)
     return mail
 
 
-def sign(mail: EmailMessage, key: str, passphrase: str = None, gnupghome: str = None) -> str:
+def sign(
+    mail: EmailMessage, key: str, passphrase: str = None, gnupghome: str = None
+) -> bytes:
     """Sign mail.
 
     Args:
@@ -232,13 +262,12 @@ def sign(mail: EmailMessage, key: str, passphrase: str = None, gnupghome: str = 
      * gnupghome: optional GnuPGP home folder
 
     Returns:
-     * Signed mail as str.
+     * Signed mail as bytes.
     """
     pmail = protected_headers_mail(mail)
     gpg = GPG(gnupghome=gnupghome)
-    gpg.encoding = "utf-8"
     signature = gpg.sign(
-        re.sub(r"\r?\n", "\r\n", pmail.as_string()),
+        re.sub(rb"\r?\n", b"\r\n", as_bytes(pmail)),
         keyid=key,
         passphrase=passphrase,
         detach=True,
@@ -246,14 +275,20 @@ def sign(mail: EmailMessage, key: str, passphrase: str = None, gnupghome: str = 
     if signature.status != "signature created":
         raise RuntimeError(f"Could not sign message: {signature.status}")
 
-    pgp_msg = MIMEBase(
-        _maintype="multipart",
-        _subtype="signed",
+    pgp_msg = MIMEPart()
+    pgp_msg.add_header(
+        _name="Content-Type",
+        _value="multipart/signed",
         micalg="pgp-sha512",
         protocol="application/pgp-signature",
     )
+    #     _maintype="multipart",
+    #     _subtype="signed",
+    #     micalg="pgp-sha512",
+    #     protocol="application/pgp-signature",
+    # )
 
-    pgp_msg_signature = EmailMessage()
+    pgp_msg_signature = MIMEPart()
     pgp_msg_signature.add_header(
         _name="Content-Type", _value="application/pgp-signature", name="signature.asc"
     )
@@ -267,7 +302,7 @@ def sign(mail: EmailMessage, key: str, passphrase: str = None, gnupghome: str = 
 
     pgp_msg.attach(pmail)
     pgp_msg.attach(pgp_msg_signature)
-    return copy_headers(pmail, pgp_msg).as_string()
+    return as_bytes(copy_headers(pmail, pgp_msg))
 
 
 if __name__ == "__main__":
@@ -285,9 +320,9 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "MAIL",
-        type=FileType("r", encoding="utf8"),
+        type=FileType("rb"),
         nargs="?",
-        default=sys.stdin,
+        default=sys.stdin.buffer,
         help="E-mail, default from stdin.",
     )
 
@@ -317,14 +352,16 @@ if __name__ == "__main__":
 
     orig_mail = args.MAIL.read()
     try:
-        mail = message_from_string(orig_mail, policy=SMTPUTF8)
+        mail = message_from_bytes(orig_mail, policy=default)
         if args.decrypt:
-            sys.stdout.write(decrypt(mail, args.gnupghome, passphrase=args.passphrase))
+            sys.stdout.buffer.write(
+                decrypt(mail, args.gnupghome, passphrase=args.passphrase)
+            )
         elif args.encrypt or args.sign_encrypt:
             if mail.get_content_type() == "multipart/encrypted":
-                sys.stdout.write(mail.as_string())
+                sys.stdout.buffer.write(as_bytes(mail))
             else:
-                sys.stdout.write(
+                sys.stdout.buffer.write(
                     encrypt(
                         mail,
                         args.RECIPIENTS,
@@ -337,7 +374,9 @@ if __name__ == "__main__":
                     )
                 )
         elif args.sign:
-            sys.stdout.write(sign(mail, args.key, args.passphrase, args.gnupghome))
-    except Exception as e:
-        sys.stderr.write(f"{e}\n")
-        sys.stdout.write(orig_mail)
+            sys.stdout.buffer.write(
+                sign(mail, args.key, args.passphrase, args.gnupghome)
+            )
+    except Exception:
+        traceback.print_exc(file=sys.stderr)
+        sys.stdout.buffer.write(orig_mail)

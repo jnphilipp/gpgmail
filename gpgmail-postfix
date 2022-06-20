@@ -47,7 +47,7 @@ EOF
 
 version() {
     cat << EOF
-gpgmail-postfix v0.6.2
+gpgmail-postfix v0.7.1
 
 Report bugs to https://github.com/jnphilipp/gpgmail/issues.
 
@@ -96,7 +96,7 @@ done
 while [[ $# -gt 0 ]]; do
     case "$1" in
         "") break ;;
-        *) SENDMAIL_ARGS+=("${1}"); shift ;;
+        *) MAILER_ARGS+=("${1}"); shift ;;
     esac
 done
 
