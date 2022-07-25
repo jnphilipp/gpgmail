@@ -282,7 +282,7 @@ def sign(
     pgp_msg_signature.add_header(
         _name="Content-Disposition", _value="attachment", filename="signature.asc"
     )
-    pgp_msg_signature.set_payload(str(signature))
+    pgp_msg_signature.set_payload(signature.data)
 
     pgp_msg.attach(pmail)
     pgp_msg.attach(pgp_msg_signature)
