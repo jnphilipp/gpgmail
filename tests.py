@@ -24,8 +24,9 @@ import gnupg
 import re
 import unittest
 
+from email import message_from_bytes
 from subprocess import Popen, PIPE
-from tempfile import TemporaryDirectory
+from tempfile import NamedTemporaryFile, TemporaryDirectory
 
 
 class GPGMailTests(unittest.TestCase):
@@ -247,6 +248,8 @@ class GPGMailTests(unittest.TestCase):
 
     def test_sign(self):
         """Test signing."""
+        gpg = gnupg.GPG(gnupghome=self.temp_gpg_homedir.name)
+
         mail = (
             "Return-Path: <alice@example.com>\nReceived: from example.com (example.com "
             "[127.0.0.1])\n    by example.com (Postfix) with ESMTPSA id E8DB612009F\n"
@@ -276,6 +279,14 @@ class GPGMailTests(unittest.TestCase):
         signed, stderr = p.communicate(input=mail)
         self.assertIn(msg, signed)
         self.assertEqual("", stderr)
+
+        with NamedTemporaryFile("wt") as f:
+            mail, signature = message_from_bytes(signed.encode("utf8")).get_payload()
+            f.write(signature.get_payload())
+
+            verified = gpg.verify_data(f.name, mail.as_bytes())
+            self.assertIsNotNone(verified.status)
+            self.assertNotEqual("bad signature", verified.status)
 
         regex = (
             r"Content-Type: multipart/signed; micalg=\"pgp-sha512\";\s+protocol=\""
@@ -336,6 +347,14 @@ class GPGMailTests(unittest.TestCase):
         self.assertIn(msg, signed)
         self.assertEqual("", stderr)
 
+        with NamedTemporaryFile("wt") as f:
+            mail, signature = message_from_bytes(signed.encode("utf8")).get_payload()
+            f.write(signature.get_payload())
+
+            verified = gpg.verify_data(f.name, mail.as_bytes())
+            self.assertIsNotNone(verified.status)
+            self.assertNotEqual("bad signature", verified.status)
+
         regex = (
             r'Content-Type: multipart/signed; micalg="pgp-sha512";\s+protocol="applicat'
             r'ion/pgp-signature";\s+boundary="=+\d+=="\nMIME-Version: 1\.0\nFrom: <mail'
@@ -358,6 +377,8 @@ class GPGMailTests(unittest.TestCase):
 
     def test_sign_encrypt_decrypt(self):
         """Test signing, encryption and decryption."""
+        gpg = gnupg.GPG(gnupghome=self.temp_gpg_homedir.name)
+
         mail = (
             "Return-Path: <alice@example.com>\nReceived: from example.com (example.com "
             "[127.0.0.1])\n    by example.com (Postfix) with ESMTPSA id E8DB612009F\n"
@@ -406,6 +427,14 @@ class GPGMailTests(unittest.TestCase):
         decrypted, stderr = p.communicate(input=encrypted)
         self.assertIn(msg, decrypted)
         self.assertEqual("", stderr)
+
+        with NamedTemporaryFile("wt") as f:
+            mail, signature = message_from_bytes(decrypted.encode("utf8")).get_payload()
+            f.write(signature.get_payload())
+
+            verified = gpg.verify_data(f.name, mail.as_bytes())
+            self.assertIsNotNone(verified.status)
+            self.assertNotEqual("bad signature", verified.status)
 
         regex = (
             r'Content-Type: multipart/mixed; protected-headers="v1";\s+boundary="'
@@ -515,11 +544,13 @@ class GPGMailTests(unittest.TestCase):
         p = Popen(
             [
                 "./gpgmail",
-                "-E",
-                "alice@example.com",
+                "--encrypt-headers",
+                "--sign-encrypt",
                 "--gnupghome",
                 self.temp_gpg_homedir.name,
-                "-H",
+                "alice@example.com",
+                "--passphrase",
+                "test",
             ],
             stdout=PIPE,
             stdin=PIPE,
@@ -549,11 +580,11 @@ class GPGMailTests(unittest.TestCase):
         p = Popen(
             [
                 "./gpgmail",
-                "-p",
-                "test",
-                "-d",
+                "--decrypt",
                 "--gnupghome",
                 self.temp_gpg_homedir.name,
+                "--passphrase",
+                "test",
             ],
             stdout=PIPE,
             stdin=PIPE,
