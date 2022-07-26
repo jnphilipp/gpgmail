@@ -123,7 +123,7 @@ def encrypt(
     encrypt_headers: bool = False,
     encrypt_subject: bool = False,
     gnupghome: str = None,
-) -> bytes:
+) -> Message:
     """Encrypt mail.
 
     Args:
@@ -137,10 +137,10 @@ def encrypt(
      * gnupghome: optional GnuPGP home folder
 
     Returns:
-     * Encrypted mail as bytes.
+     * encrypted mail.
     """
     if sign_mail and key:
-        pmail = message_from_bytes(sign(mail, key, passphrase, gnupghome))
+        pmail = sign(mail, key, passphrase, gnupghome)
     else:
         pmail = protected_headers_mail(mail)
     gpg = GPG(gnupghome=gnupghome)
@@ -182,7 +182,7 @@ def encrypt(
 
     pgp_msg.attach(pgp_msg_part1)
     pgp_msg.attach(pgp_msg_part2)
-    return as_bytes(copy_headers(pmail, pgp_msg))
+    return copy_headers(pmail, pgp_msg)
 
 
 def protected_headers_mail(mail: Message) -> Message:
@@ -192,7 +192,7 @@ def protected_headers_mail(mail: Message) -> Message:
      * mail: mail to convert headers
 
     Returns:
-     * conveerted mail
+     * rfc822-headers mail
     """
     if "Content-Type" not in mail or (
         "Content-Type" in mail and 'protected-headers="v1"' not in mail["Content-Type"]
@@ -243,7 +243,7 @@ def protected_headers_mail(mail: Message) -> Message:
 
 def sign(
     mail: Message, key: str, passphrase: str = None, gnupghome: str = None
-) -> bytes:
+) -> Message:
     """Sign mail.
 
     Args:
@@ -253,7 +253,7 @@ def sign(
      * gnupghome: optional GnuPGP home folder
 
     Returns:
-     * Signed mail as bytes.
+     * signed mail.
     """
     pmail = protected_headers_mail(mail)
     gpg = GPG(gnupghome=gnupghome)
@@ -287,7 +287,7 @@ def sign(
 
     pgp_msg.attach(pmail)
     pgp_msg.attach(pgp_msg_signature)
-    return as_bytes(copy_headers(pmail, pgp_msg))
+    return copy_headers(pmail, pgp_msg)
 
 
 if __name__ == "__main__":
@@ -347,20 +347,22 @@ if __name__ == "__main__":
                 sys.stdout.buffer.write(as_bytes(mail))
             else:
                 sys.stdout.buffer.write(
-                    encrypt(
-                        mail,
-                        args.RECIPIENTS,
-                        args.sign_encrypt,
-                        args.key,
-                        args.passphrase,
-                        args.encrypt_headers,
-                        args.encrypt_subject,
-                        args.gnupghome,
+                    as_bytes(
+                        encrypt(
+                            mail,
+                            args.RECIPIENTS,
+                            args.sign_encrypt,
+                            args.key,
+                            args.passphrase,
+                            args.encrypt_headers,
+                            args.encrypt_subject,
+                            args.gnupghome,
+                        )
                     )
                 )
         elif args.sign:
             sys.stdout.buffer.write(
-                sign(mail, args.key, args.passphrase, args.gnupghome)
+                as_bytes(sign(mail, args.key, args.passphrase, args.gnupghome))
             )
     except Exception:
         traceback.print_exc(file=sys.stderr)
