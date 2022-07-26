@@ -24,7 +24,6 @@ import gnupg
 import re
 import unittest
 
-from email import message_from_bytes
 from subprocess import Popen, PIPE
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 
@@ -36,6 +35,20 @@ class GPGMailTests(unittest.TestCase):
         """Set up test case, create GPG key."""
         self.temp_gpg_homedir = TemporaryDirectory()
         gpg = gnupg.GPG(gnupghome=self.temp_gpg_homedir.name)
+
+        gpgmail_input = gpg.gen_key_input(
+            name_real="gpgmail",
+            name_email="gpgmail@example.com",
+            key_curve="cv25519",
+            key_usage="encrypt,sign,auth",
+            passphrase="test",
+            expire_date="1y",
+        )
+        gpgmail_key = gpg.gen_key(gpgmail_input)
+        self.assertIsNotNone(gpgmail_key)
+        self.assertEqual("ok", gpgmail_key.status)
+        self.key_id = gpg.list_keys(True)[0]["keyid"]
+
         alice_input = gpg.gen_key_input(
             name_real="Alice",
             name_email="alice@example.com",
@@ -46,10 +59,11 @@ class GPGMailTests(unittest.TestCase):
             subkey_length=4096,
             passphrase="test",
             subkey_usage="encrypt,sign,auth",
+            expire_date="1y",
         )
-        self.alice_key = gpg.gen_key(alice_input)
-        self.assertIsNotNone(self.alice_key)
-        self.assertIsNotNone(self.alice_key.fingerprint)
+        alice_key = gpg.gen_key(alice_input)
+        self.assertIsNotNone(alice_key)
+        self.assertEqual("ok", alice_key.status)
 
     def tearDown(self):
         """Tear down test case, clean gpg home dir."""
@@ -75,6 +89,10 @@ class GPGMailTests(unittest.TestCase):
                 "alice@example.com",
                 "--gnupghome",
                 self.temp_gpg_homedir.name,
+                "-k",
+                self.key_id,
+                "-p",
+                "test",
             ],
             stdout=PIPE,
             stdin=PIPE,
@@ -88,6 +106,8 @@ class GPGMailTests(unittest.TestCase):
         p = Popen(
             [
                 "./gpgmail",
+                "-k",
+                self.key_id,
                 "-p",
                 "test",
                 "-d",
@@ -104,21 +124,13 @@ class GPGMailTests(unittest.TestCase):
         self.assertEqual("", stderr)
 
         regex = (
-            r'Content-Type: multipart/mixed; protected-headers="v1";\s+boundary="=+\d+='
-            r'="\nMIME-Version: 1\.0\nReturn-Path: <alice@example\.com>\nReceived: from'
-            r" example\.com \(example\.com \[127\.0\.0\.1\]\)\s+by example\.com "
-            r"\(Postfix\) with ESMTPSA id E8DB612009F\s+for <alice@example\.com>; "
-            r"Tue,  7 Jan 2020 19:30:03 \+0200 \(CEST\)\nSubject: Test\nFrom: "
-            r"alice@example\.com\nTo: alice@example\.com\nDate: Tue, 07 Jan 2020 "
-            r"19:30:03 -0000\nMessage-ID: <123456789\.123456\.123456789@example\.com>"
-            r"\n\n--=+\d+==\nContent-Type: text/rfc822-headers; protected-headers="
-            r'"v1"\nContent-Disposition: inline\n(Date: Tue, 07 Jan 2020 19:30:03 '
-            r"-0000\n|From: alice@example\.com\n|Message-ID: <123456789\.123456\."
-            r"123456789@example\.com>\n|To: alice@example\.com\n|Subject: Test\n)+\n"
-            r'\n--=+\d+==\nContent-Type: text/plain; charset="utf-8"\nContent-'
-            r"Transfer-Encoding: 7bit\n\nThis is a test message\.\n--=+\d+==--\n"
+            r'Content-Type:\s+multipart/mixed;\s+protected-headers="v1";\s+boundary="=+'
+            r'\d+==".+?--=+\d+==\nContent-Type:\s+text/rfc822-headers;\s+protected-head'
+            r'ers="v1"\nContent-Disposition: inline\n(Subject:.+?\n|From:.+?\n|Message-'
+            r"ID:.+?\n|Date:.+?\n|To:.+?\n)+\n\n--=+\d+==\n.+?\n\nThis is a test messag"
+            r"e\.\n--=+\d+==--\n"
         )
-        self.assertIsNotNone(re.fullmatch(regex, decrypted))
+        self.assertIsNotNone(re.fullmatch(regex, decrypted, flags=re.S))
 
         mail = (
             "Return-Path: <alice@example.com>\nReceived: from example.com (example.com "
@@ -138,6 +150,10 @@ class GPGMailTests(unittest.TestCase):
                 "alice@example.com",
                 "--gnupghome",
                 self.temp_gpg_homedir.name,
+                "-k",
+                self.key_id,
+                "-p",
+                "test",
             ],
             stdout=PIPE,
             stdin=PIPE,
@@ -157,6 +173,8 @@ class GPGMailTests(unittest.TestCase):
                 "./gpgmail",
                 "-p",
                 "test",
+                "-k",
+                self.key_id,
                 "-d",
                 "--gnupghome",
                 self.temp_gpg_homedir.name,
@@ -171,21 +189,13 @@ class GPGMailTests(unittest.TestCase):
         self.assertEqual("", stderr)
 
         regex = (
-            r'Content-Type: multipart/mixed; protected-headers="v1";\s+boundary="=+\d+='
-            r'="\nMIME-Version: 1\.0\nReturn-Path: <alice@example\.com>\nReceived: from'
-            r" example\.com \(example\.com \[127\.0\.0\.1\]\)\s+by example\.com \("
-            r"Postfix\) with ESMTPSA id E8DB612009F\s+for <alice@example\.com>; Tue, "
-            r" 7 Jan 2020 19:30:03 \+0200 \(CEST\)\nSubject: Test\nFrom: "
-            r"alice@example\.com\nTo: alice@example.com\nDate: Tue, 07 Jan 2020 "
-            r"19:30:03 -0000\nMessage-ID: <123456789\.123456\.123456789@example\.com>"
-            r'\n\n--=+\d+==\nContent-Type: text/rfc822-headers; protected-headers="v1'
-            r'"\nContent-Disposition: inline\n(Date: Tue, 07 Jan 2020 19:30:03 -0000'
-            r"\n|Subject: Test\n|From: alice@example\.com\n|To: alice@example\.com\n|"
-            r"Message-ID: <123456789\.123456\.123456789@example\.com>\n)+\n\n--=+\d+="
-            r'=\nContent-Type: text/plain; charset="utf-8"\n\nZ pśijaśelnym póstrowom\n'
-            r"Mit freundlichen Grüßen\n--=+\d+==--\n"
+            r'Content-Type:\s+multipart/mixed;\s+protected-headers="v1";\s+boundary="=+'
+            r'\d+==".+?--=+\d+==\nContent-Type:\s+text/rfc822-headers;\s+protected-head'
+            r'ers="v1"\nContent-Disposition: inline\n(Subject:.+?\n|From:.+?\n|Message-'
+            r"ID:.+?\n|Date:.+?\n|To:.+?\n)+\n\n--=+\d+==\n.+?\n\nZ pśijaśelnym póstrow"
+            r"om\nMit freundlichen Grüßen\n--=+\d+==--\n"
         )
-        self.assertIsNotNone(re.fullmatch(regex, decrypted))
+        self.assertIsNotNone(re.fullmatch(regex, decrypted, flags=re.S))
 
         mail = (
             "From: <mail@sender.com>\nTo: <mail@example.com>\nSubject: Test\nDate: "
@@ -220,6 +230,8 @@ class GPGMailTests(unittest.TestCase):
                 "./gpgmail",
                 "-p",
                 "test",
+                "-k",
+                self.key_id,
                 "-d",
                 "--gnupghome",
                 self.temp_gpg_homedir.name,
@@ -234,17 +246,14 @@ class GPGMailTests(unittest.TestCase):
         self.assertEqual("", stderr)
 
         regex = (
-            r'Content-Type: multipart/mixed; protected-headers="v1";\s+boundary="=+\d+='
-            r'="\nMIME-Version: 1\.0\nFrom: <mail@sender\.com>\nTo: <mail@example\.com>'
-            r"\nSubject: Test\nDate: Thu, 27 Jun 2019 09:42:57 \+0200\n\n--=+\d+==\n"
-            r'Content-Type: text/rfc822-headers; protected-headers="v1"\nContent-'
-            r"Disposition: inline\n(From: <mail@sender\.com>\n|Subject: Test\n|To: "
-            r"<mail@example\.com>\n|Date: Thu, 27 Jun 2019 09:42:57 \+0200\n)+\n\n"
-            r'--=+\d+==\nContent-Type: text/plain; charset="UTF-8"\n\nThis is a '
-            r"message, with some text. ÄÖÜäöüßłµøǒšé\n\nZ pśijaśelnym póstrowom\nMit "
-            r"freundlichen Grüßen\n\ngpgmail\n--=+\d+==--\n"
+            r'Content-Type:\s+multipart/mixed;\s+protected-headers="v1";\s+boundary="=+'
+            r'\d+==".+?--=+\d+==\nContent-Type:\s+text/rfc822-headers;\s+protected-head'
+            r'ers="v1"\nContent-Disposition: inline\n(Subject:.+?\n|From:.+?\n|Message-'
+            r"ID:.+?\n|Date:.+?\n|To:.+?\n)+\n\n--=+\d+==\n.+?\n\nThis is a message, wi"
+            r"th some text. ÄÖÜäöüßłµøǒšé\n\nZ pśijaśelnym póstrowom\nMit freundlichen "
+            r"Grüßen\n\ngpgmail\n--=+\d+==--\n"
         )
-        self.assertIsNotNone(re.fullmatch(regex, decrypted))
+        self.assertIsNotNone(re.fullmatch(regex, decrypted, flags=re.S))
 
     def test_sign(self):
         """Test signing."""
@@ -268,6 +277,8 @@ class GPGMailTests(unittest.TestCase):
                 "alice@example.com",
                 "--gnupghome",
                 self.temp_gpg_homedir.name,
+                "-k",
+                self.key_id,
                 "-p",
                 "test",
             ],
@@ -280,42 +291,34 @@ class GPGMailTests(unittest.TestCase):
         self.assertIn(msg, signed)
         self.assertEqual("", stderr)
 
+        m = re.search(
+            r"--=+\d+==\n(?P<data>.+?)--=+\d+==--.+?(?P<signature>-+BEGIN PGP "
+            r"SIGNATURE-+.+?-+END PGP SIGNATURE-+)",
+            signed,
+            flags=re.S,
+        )
+        self.assertIsNotNone(m)
         with NamedTemporaryFile("wt") as f:
-            mail, signature = message_from_bytes(signed.encode("utf8")).get_payload()
-            f.write(signature.get_payload())
+            f.write(m.group("signature"))
 
-            verified = gpg.verify_data(f.name, mail.as_bytes())
+            verified = gpg.verify_data(f.name, m.group("data").encode("utf8"))
             self.assertIsNotNone(verified.status)
             self.assertNotEqual("bad signature", verified.status)
 
         regex = (
-            r"Content-Type: multipart/signed; micalg=\"pgp-sha512\";\s+protocol=\""
-            r"application/pgp-signature\";\s+boundary=\"=+\d+==\"\nMIME-Version: 1\.0\n"
-            r"Return-Path: <alice@example\.com>\nReceived: from example\.com \(example"
-            r"\.com \[127\.0\.0\.1\]\)\s+by example\.com \(Postfix\) with ESMTPSA id "
-            r"E8DB612009F\s+for <alice@example\.com>; Tue,  7 Jan 2020 19:30:03 \+0200 "
-            r"\(CEST\)\nSubject: Test\nFrom: alice@example\.com\nTo: alice@example\.com"
-            r"\nDate: Tue, 07 Jan 2020 19:30:03 -0000\nMessage-ID: \n <123456789\."
-            r"123456\.123456789@example\.com>\n\n--=+\d+==\nContent-Type: multipart/"
-            r"mixed; protected-headers=\"v1\"; boundary=\"=+\d+==\"\nMIME-Version: 1\.0"
-            r"\nReturn-Path: <alice@example\.com>\nReceived: from example\.com \("
-            r"example\.com \[127\.0\.0\.1\]\)\s+by example.com \(Postfix\) with ESMTPSA"
-            r" id E8DB612009F\s+for <alice@example\.com>; Tue,  7 Jan 2020 19:30:03 "
-            r"\+0200 \(CEST\)\nSubject: Test\nFrom: alice@example.com\nTo: alice@"
-            r"example\.com\nDate: Tue, 07 Jan 2020 19:30:03 -0000\nMessage-ID:\s+<"
-            r"123456789\.123456\.123456789@example\.com>\n\n--=+\d+==\nContent-Type: "
-            r"text/rfc822-headers; protected-headers=\"v1\"\nContent-Disposition: "
-            r"inline\n(Date: Tue, 07 Jan 2020 19:30:03 -0000\n|Subject: Test\n|From: "
-            r"alice@example\.com\n|To: alice@example\.com\n|Message-ID:\s+<123456789\."
-            r"123456\.123456789@example\.com>\n)+\n\n--=+\d+==\nContent-Type: text/"
-            r"plain; charset=\"utf-8\"\nContent-Transfer-Encoding: 7bit\n\nThis is a "
-            r"test message\.\n--=+\d+==--\n\n--=+\d+==\nContent-Type: application/pgp-"
-            r"signature; name=\"signature\.asc\"\nContent-Description: OpenPGP digital "
-            r"signature\nContent-Disposition: attachment; filename=\"signature\.asc\"\n"
-            r"\n-----BEGIN PGP SIGNATURE-----[\w\+/\n=]+-----END PGP SIGNATURE-----\n\n"
-            r"--=+\d+==--\n"
+            r'Content-Type:\s+multipart/signed;\s+micalg="pgp-sha512";\s+protocol="appl'
+            r'ication/pgp-signature";\s+boundary="=+\d+=="\n.+?\n\n--=+\d+==\nContent-T'
+            r'ype:\s+multipart/mixed;\s+protected-headers="v1";\s+boundary="=+\d+=="\n'
+            r".+?\n\n--=+\d+==\nContent-Type:\s+text/rfc822-headers;\s+protected-header"
+            r's="v1"\nContent-Disposition: inline\n(Date:.+?\n|Message-ID:.+?\n|Subject'
+            r":.+?\n|To:.+?\n|From:.+?\n)+\n\n--=+\d+==\nContent-Type: text/plain; char"
+            r'set="utf-8".+?This is a test message\.\n--=+\d+==--\n\n--=+\d+==\nContent'
+            r'-Type: application/pgp-signature; name="signature\.asc"\nContent-Descript'
+            r"ion: OpenPGP digital signature\nContent-Disposition: attachment; filename"
+            r'="signature\.asc"\n\n-+BEGIN PGP SIGNATURE-+\n\n[\w\n\+/=]+\n-+END PGP SI'
+            r"GNATURE-+\n\n--=+\d+==--\n"
         )
-        self.assertIsNotNone(re.fullmatch(regex, signed))
+        self.assertIsNotNone(re.fullmatch(regex, signed, flags=re.S))
 
         mail = (
             "From: <mail@sender.com>\nTo: <mail@example.com>\nSubject: Test\nDate: "
@@ -335,6 +338,8 @@ class GPGMailTests(unittest.TestCase):
                 "alice@example.com",
                 "--gnupghome",
                 self.temp_gpg_homedir.name,
+                "-k",
+                self.key_id,
                 "-p",
                 "test",
             ],
@@ -347,33 +352,35 @@ class GPGMailTests(unittest.TestCase):
         self.assertIn(msg, signed)
         self.assertEqual("", stderr)
 
+        m = re.search(
+            r"--=+\d+==\n(?P<data>.+?)--=+\d+==--.+?(?P<signature>-+BEGIN PGP "
+            r"SIGNATURE-+.+?-+END PGP SIGNATURE-+)",
+            signed,
+            flags=re.S,
+        )
+        self.assertIsNotNone(m)
         with NamedTemporaryFile("wt") as f:
-            mail, signature = message_from_bytes(signed.encode("utf8")).get_payload()
-            f.write(signature.get_payload())
+            f.write(m.group("signature"))
 
-            verified = gpg.verify_data(f.name, mail.as_bytes())
+            verified = gpg.verify_data(f.name, m.group("data").encode("utf8"))
             self.assertIsNotNone(verified.status)
             self.assertNotEqual("bad signature", verified.status)
 
         regex = (
-            r'Content-Type: multipart/signed; micalg="pgp-sha512";\s+protocol="applicat'
-            r'ion/pgp-signature";\s+boundary="=+\d+=="\nMIME-Version: 1\.0\nFrom: <mail'
-            r"@sender\.com>\nTo: <mail@example\.com>\nSubject: Test\nDate: Thu, 27 Jun "
-            r"2019 09:42:57 \+0200\n\n--=+\d+==\nContent-Type: multipart/mixed; protect"
-            r'ed-headers="v1"; boundary="=+\d+=="\nMIME-Version: 1\.0\nFrom: <mail@send'
-            r"er\.com>\nTo: <mail@example\.com>\nSubject: Test\nDate: Thu, 27 Jun 2019 "
-            r"09:42:57 \+0200\n\n--=+\d+==\nContent-Type: text/rfc822-headers; protecte"
-            r'd-headers="v1"\nContent-Disposition: inline\n(Date: Thu, 27 Jun 2019 09:4'
-            r"2:57 \+0200\n|Subject: Test\n|To: <mail@example\.com>\n|From: <mail@sende"
-            r'r\.com>\n)+\n\n--=+\d+==\nContent-Type: text/plain; charset="UTF-8"\n\nTh'
-            r"is is a message, with some text\. ÄÖÜäöüßłµøǒšé\n\nZ pśijaśelnym póstrowo"
-            r"m\nMit freundlichen Grüßen\n\ngpgmail\n--=+\d+==--\n\n--=+\d+==\nContent-"
-            r'Type: application/pgp-signature; name="signature\.asc"\nContent-Descripti'
-            r"on: OpenPGP digital signature\nContent-Disposition: attachment; filename="
-            r'"signature\.asc"\n\n-----BEGIN PGP SIGNATURE-----[\w\+/\n=]+-----END PGP '
-            r"SIGNATURE-----\n\n--=+\d+==--\n"
+            r'Content-Type:\s+multipart/signed;\s+micalg="pgp-sha512";\s+protocol="appl'
+            r'ication/pgp-signature";\s+boundary="=+\d+=="\n.+?\n\n--=+\d+==\nContent-T'
+            r'ype:\s+multipart/mixed;\s+protected-headers="v1";\s+boundary="=+\d+=="\n'
+            r".+?\n\n--=+\d+==\nContent-Type:\s+text/rfc822-headers;\s+protected-header"
+            r's="v1"\nContent-Disposition: inline\n(Date:.+?\n|Message-ID:.+?\n|Subject'
+            r":.+?\n|To:.+?\n|From:.+?\n)+\n\n--=+\d+==\nContent-Type: text/plain; char"
+            r'set="UTF-8".+?This is a message, with some text. ÄÖÜäöüßłµøǒšé\n\nZ pśija'
+            r"śelnym póstrowom\nMit freundlichen Grüßen\n\ngpgmail\n--=+\d+==--\n\n--=+"
+            r'\d+==\nContent-Type: application/pgp-signature; name="signature\.asc"\nCo'
+            r"ntent-Description: OpenPGP digital signature\nContent-Disposition: attach"
+            r'ment; filename="signature\.asc"\n\n-+BEGIN PGP SIGNATURE-+\n\n[\w\n\+/=]+'
+            r"\n-+END PGP SIGNATURE-+\n\n--=+\d+==--\n"
         )
-        self.assertIsNotNone(re.fullmatch(regex, signed))
+        self.assertIsNotNone(re.fullmatch(regex, signed, flags=re.S))
 
     def test_sign_encrypt_decrypt(self):
         """Test signing, encryption and decryption."""
@@ -398,6 +405,8 @@ class GPGMailTests(unittest.TestCase):
                 "alice@example.com",
                 "--gnupghome",
                 self.temp_gpg_homedir.name,
+                "-k",
+                self.key_id,
                 "-p",
                 "test",
             ],
@@ -413,11 +422,13 @@ class GPGMailTests(unittest.TestCase):
         p = Popen(
             [
                 "./gpgmail",
-                "-p",
-                "test",
                 "-d",
                 "--gnupghome",
                 self.temp_gpg_homedir.name,
+                "-k",
+                self.key_id,
+                "-p",
+                "test",
             ],
             stdout=PIPE,
             stdin=PIPE,
@@ -428,32 +439,34 @@ class GPGMailTests(unittest.TestCase):
         self.assertIn(msg, decrypted)
         self.assertEqual("", stderr)
 
+        m = re.search(
+            r"--=+\d+==\n(?P<data>.+?)--=+\d+==--.+?(?P<signature>-+BEGIN PGP "
+            r"SIGNATURE-+.+?-+END PGP SIGNATURE-+)",
+            decrypted,
+            flags=re.S,
+        )
+        self.assertIsNotNone(m)
         with NamedTemporaryFile("wt") as f:
-            mail, signature = message_from_bytes(decrypted.encode("utf8")).get_payload()
-            f.write(signature.get_payload())
+            f.write(m.group("signature"))
 
-            verified = gpg.verify_data(f.name, mail.as_bytes())
+            verified = gpg.verify_data(f.name, m.group("data").encode("utf8"))
             self.assertIsNotNone(verified.status)
             self.assertNotEqual("bad signature", verified.status)
 
         regex = (
-            r'Content-Type: multipart/mixed; protected-headers="v1";\s+boundary="'
-            + r'===============\d+=="\nMIME-Version: 1\.0\nReturn-Path: <alice@example'
-            + r"\.com>\nReceived: from example\.com \(example.com \[127\.0\.0\.1\]\)\n"
-            + r"    by example\.com \(Postfix\) with ESMTPSA id E8DB612009F\n    for "
-            + r"<alice@example\.com>; Tue,  7 Jan 2020 19:30:03 \+0200 \(CEST\)\n"
-            + r"Subject: Test\nFrom: alice@example\.com\nTo: alice@example\.com\nDate: "
-            + r"Tue, 07 Jan 2020 19:30:03 -0000\nMessage-ID: \n <123456789\.123456\."
-            + r"123456789@example\.com>\n\n--===============\d+==\nContent-Type: text/"
-            + r'rfc822-headers; protected-headers="v1"\nContent-Disposition: inline\n'
-            + r"(Date: Tue, 07 Jan 2020 19:30:03 -0000\n|Subject: Test\n|From: "
-            + r"alice@example\.com\n|To: alice@example\.com\n|Message-ID: \n"
-            + r" <123456789\.123456\.123456789@example\.com>\n)+\n\n--==============="
-            + r'\d+==\nContent-Type: text/plain; charset="utf-8"\n MIME-Version: 1.0\n'
-            + r"Content-Transfer-Encoding: 7bit\n\nThis is a test message\.\n--"
-            + r"===============\d+==--\n"
+            r'Content-Type:\s+multipart/signed;\s+micalg="pgp-sha512";\s+protocol="appl'
+            r'ication/pgp-signature";\s+boundary="=+\d+=="\n.+?\n\n--=+\d+==\nContent-T'
+            r'ype:\s+multipart/mixed;\s+protected-headers="v1";\s+boundary="=+\d+=="\n'
+            r".+?\n\n--=+\d+==\nContent-Type:\s+text/rfc822-headers;\s+protected-header"
+            r's="v1"\nContent-Disposition: inline\n(Date:.+?\n|Message-ID:.+?\n|Subject'
+            r":.+?\n|To:.+?\n|From:.+?\n)+\n\n--=+\d+==\nContent-Type: text/plain; char"
+            r'set="utf-8".+?This is a test message\.\n--=+\d+==--\n\n--=+\d+==\nContent'
+            r'-Type: application/pgp-signature; name="signature\.asc"\nContent-Descript'
+            r"ion: OpenPGP digital signature\nContent-Disposition: attachment; filename"
+            r'="signature\.asc"\n\n-+BEGIN PGP SIGNATURE-+\n\n[\w\n\+/=]+\n-+END PGP SI'
+            r"GNATURE-+\n\n--=+\d+==--\n"
         )
-        self.assertIsNotNone(re.fullmatch(regex, decrypted))
+        self.assertIsNotNone(re.fullmatch(regex, decrypted, flags=re.S))
 
     def test_encryptheaders(self):
         """Test encryption of headers (RFC 822)."""
@@ -479,6 +492,10 @@ class GPGMailTests(unittest.TestCase):
                 "--gnupghome",
                 self.temp_gpg_homedir.name,
                 "-H",
+                "--key",
+                self.key_id,
+                "-p",
+                "test",
             ],
             stdout=PIPE,
             stdin=PIPE,
@@ -504,11 +521,13 @@ class GPGMailTests(unittest.TestCase):
         p = Popen(
             [
                 "./gpgmail",
-                "-p",
-                "test",
                 "-d",
                 "--gnupghome",
                 self.temp_gpg_homedir.name,
+                "-k",
+                self.key_id,
+                "-p",
+                "test",
             ],
             stdout=PIPE,
             stdin=PIPE,
@@ -553,6 +572,8 @@ class GPGMailTests(unittest.TestCase):
                 "alice@example.com",
                 "--passphrase",
                 "test",
+                "--key",
+                self.key_id,
             ],
             stdout=PIPE,
             stdin=PIPE,
@@ -587,6 +608,8 @@ class GPGMailTests(unittest.TestCase):
                 self.temp_gpg_homedir.name,
                 "--passphrase",
                 "test",
+                "--key",
+                self.key_id,
             ],
             stdout=PIPE,
             stdin=PIPE,
@@ -609,12 +632,17 @@ class GPGMailTests(unittest.TestCase):
         self.assertIn("Subject: Test\n", decrypted)
         self.assertIn("To: alice@example.com\n", decrypted)
 
+        m = re.search(
+            r"--=+\d+==\n(?P<data>.+?)--=+\d+==--.+?(?P<signature>-+BEGIN PGP "
+            r"SIGNATURE-+.+?-+END PGP SIGNATURE-+)",
+            decrypted,
+            flags=re.S,
+        )
+        self.assertIsNotNone(m)
         with NamedTemporaryFile("wt") as f:
-            mail, signature = message_from_bytes(decrypted.encode("utf8")).get_payload()
-            f.write(signature.get_payload())
+            f.write(m.group("signature"))
 
-            verified = gpg.verify_data(f.name, mail.as_bytes())
-            print(verified.status)
+            verified = gpg.verify_data(f.name, m.group("data").encode("utf8"))
             self.assertIsNotNone(verified.status)
             self.assertNotEqual("bad signature", verified.status)
 
@@ -639,6 +667,10 @@ class GPGMailTests(unittest.TestCase):
                 "--gnupghome",
                 self.temp_gpg_homedir.name,
                 "-H",
+                "--key",
+                self.key_id,
+                "-p",
+                "test",
             ],
             stdout=PIPE,
             stdin=PIPE,
@@ -672,6 +704,10 @@ class GPGMailTests(unittest.TestCase):
                 "--gnupghome",
                 self.temp_gpg_homedir.name,
                 "-H",
+                "--key",
+                self.key_id,
+                "-p",
+                "test",
             ],
             stdout=PIPE,
             stdin=PIPE,
@@ -714,6 +750,8 @@ class GPGMailTests(unittest.TestCase):
                 self.temp_gpg_homedir.name,
                 "-p",
                 "test",
+                "--key",
+                self.key_id,
             ],
             stdout=PIPE,
             stdin=PIPE,
@@ -727,6 +765,8 @@ class GPGMailTests(unittest.TestCase):
         p = Popen(
             [
                 "./gpgmail",
+                "--key",
+                self.key_id,
                 "-p",
                 "test",
                 "-d",
@@ -742,34 +782,39 @@ class GPGMailTests(unittest.TestCase):
         self.assertIn(msg, decrypted)
         self.assertEqual("", stderr)
 
+        m = re.search(
+            r"--=+\d+==\n(?P<data>.+?)--=+\d+==--.+?(?P<signature>-+BEGIN PGP "
+            r"SIGNATURE-+.+?-+END PGP SIGNATURE-+)",
+            decrypted,
+            flags=re.S,
+        )
+        self.assertIsNotNone(m)
         with NamedTemporaryFile("wt") as f:
-            mail, signature = message_from_bytes(decrypted.encode("utf8")).get_payload()
-            f.write(signature.get_payload())
+            f.write(m.group("signature"))
 
-            verified = gpg.verify_data(f.name, mail.as_bytes())
-            print(verified.status)
+            verified = gpg.verify_data(f.name, m.group("data").encode("utf8"))
             self.assertIsNotNone(verified.status)
             self.assertNotEqual("bad signature", verified.status)
 
         regex = (
-            r'Content-Type: multipart/mixed; protected-headers="v1";\s+boundary="=+\d+='
-            r'="\nMIME-Version: 1\.0\nReturn-Path: <alice@example\.com>\nReceived: from'
-            r" example\.com \(example\.com \[127\.0\.0\.1\]\)\s+by example\.com \(Postf"
-            r"ix\) with ESMTPSA id E8DB612009F\s+for <alice@example\.com>;\s+Tue,  7 Ja"
-            r"n 2020 19:30:03 \+0200 \(CEST\)\nSubject: Test\nFrom: alice@example\.com"
-            r"\nTo: alice@example\.com\nDate: Tue, 07 Jan 2020 19:30:03 -0000\nMessage-"
-            r"ID:\s+<[\d\.]+@example\.com>\n\n--=+\d+==\nContent-Type: text/rfc822-head"
-            r'ers; protected-headers="v1"\nContent-Disposition: inline\n(Message-ID:\s+'
-            r"<[\d\.]+@example\.com>\n|To: alice@example.com\n|Subject: Test\n|Date: Tu"
-            r"e, 07 Jan 2020 19:30:03 -0000\n|From: alice@example.com\n)+\n\n--=+\d+=="
-            r'\nContent-Type: text/plain; charset="utf-8"\n\nFür alle Räuber in der Röh'
-            r"n, es gibt ein neues Café\.\nÄÖÜß\n\nZ pśijaśelnym póstrowom\nMit freundl"
-            r"ichen Grüßen\ngpgmail\n--=+\d+==--\n"
+            r'Content-Type:\s+multipart/signed;\s+micalg="pgp-sha512";\s+protocol="appl'
+            r'ication/pgp-signature";\s+boundary="=+\d+==".+?--=+\d+==\nContent-Type:'
+            r'\s+multipart/mixed;\s+protected-headers="v1";\s+boundary="=+\d+==".+?--=+'
+            r'\d+==\nContent-Type: text/rfc822-headers; protected-headers="v1"\nContent'
+            r"-Disposition: inline\n(Date:.+?\n|To:.+?\n|From:.+?\n|Message-ID:.+?\n|Su"
+            r"bject:.+?\n)+\n\n--=+\d+==.+?Für alle Räuber in der Röhn, es gibt ein neu"
+            r"es Café\.\nÄÖÜß\n\nZ pśijaśelnym póstrowom\nMit freundlichen Grüßen\ngpgm"
+            r"ail\n--=+\d+==--\n\n--=+\d+==\nContent-Type: application/pgp-signature; n"
+            r'ame="signature\.asc"\nContent-Description: OpenPGP digital signature\nCon'
+            r'tent-Disposition: attachment; filename="signature\.asc"\n\n-+BEGIN PGP SI'
+            r"GNATURE-+[\n\w\d\+/=]+-+END PGP SIGNATURE-+\n\n--=+\d+==--\n"
         )
-        self.assertIsNotNone(re.fullmatch(regex, decrypted))
+        self.assertIsNotNone(re.fullmatch(regex, decrypted, flags=re.S))
 
     def test_multipart_message(self):
         """Test handling of multipart messages."""
+        gpg = gnupg.GPG(gnupghome=self.temp_gpg_homedir.name)
+
         mail = (
             "Return-Path: <alice@example.com>\nReceived: from example.com (example.com "
             "[127.0.0.1])\n by example.com (Postfix) with ESMTPSA id E8DB612009F\n for "
@@ -809,6 +854,8 @@ class GPGMailTests(unittest.TestCase):
                 self.temp_gpg_homedir.name,
                 "-p",
                 "test",
+                "-k",
+                self.key_id,
             ],
             stdout=PIPE,
             stdin=PIPE,
@@ -823,6 +870,8 @@ class GPGMailTests(unittest.TestCase):
         p = Popen(
             [
                 "./gpgmail",
+                "-k",
+                self.key_id,
                 "-p",
                 "test",
                 "-d",
@@ -839,29 +888,41 @@ class GPGMailTests(unittest.TestCase):
         self.assertIn(msg2, decrypted)
         self.assertEqual("", stderr)
 
-        regex = (
-            r'Content-Type: multipart/mixed; protected-headers="v1";\s+boundary="=+\d+='
-            r'="\nMIME-Version: 1\.0\nReturn-Path: <alice@example\.com>\nReceived: from'
-            r" example\.com \(example\.com \[127\.0\.0\.1\]\)\s+by example\.com \(Postf"
-            r"ix\) with ESMTPSA id E8DB612009F\s+for <alice@example\.com>; Tue,  7 Jan "
-            r"2020 19:30:03 \+0200 \(CEST\)\nMessage-ID:\s+<[\d\.]+@example\.com>\nSubj"
-            r"ect: Test\nFrom: alice@example\.com\nTo: alice@example\.com\nDate: Tue, 0"
-            r"7 Jan 2020 19:30:03 -0000\n\n--=+\d+==\nContent-Type: text/rfc822-headers"
-            r'; protected-headers="v1"\n(Content-Disposition: inline\n|Date: Tue, 07 Ja'
-            r"n 2020 19:30:03 -0000\n|From: alice@example\.com\n|Subject: Test\n|To: al"
-            r"ice@example\.com\n|Message-ID:\s+<[\d\.]+@example\.com>\n)+\n\n--=+\d+=="
-            r'\nContent-Type: multipart/alternative;\s+boundary="pCGCiOTgoFTJJwVyvskX"'
-            r'\n\n--pCGCiOTgoFTJJwVyvskX\nContent-Type: text/plain; charset="UTF-8"\nCo'
-            r"ntent-Transfer-Encoding: 8bit\n\nThis is a message, with some text\.\n\nZ"
-            r" pśijaśelnym póstrowom\nMit freundlichen Grüßen\n\ngpgmail\n--pCGCiOTgoFT"
-            r'JJwVyvskX\nContent-Type: text/html; charset="utf-8"\nContent-Transfer-Enc'
-            r"oding: 8bit\n\n<html><head></head><body><div>This is a <b>message</b>, wi"
-            r"th some <i>text</i>\.</div><div><br></div><div>Z pśijaśelnym póstrowom</d"
-            r"iv><div>Mit freundlichen Grüßen</div><div><br></div><div>gpgmail</div><di"
-            r"v><span></span></div></body></html>\n--pCGCiOTgoFTJJwVyvskX--\n\n--=+\d+="
-            r"=--\n"
+        m = re.search(
+            r"--=+\d+==\n(?P<data>.+?)--=+\d+==--.+?(?P<signature>-+BEGIN PGP "
+            r"SIGNATURE-+.+?-+END PGP SIGNATURE-+)",
+            decrypted,
+            flags=re.S,
         )
-        self.assertIsNotNone(re.fullmatch(regex, decrypted))
+        self.assertIsNotNone(m)
+        with NamedTemporaryFile("wt") as f:
+            f.write(m.group("signature"))
+
+            verified = gpg.verify_data(f.name, m.group("data").encode("utf8"))
+            self.assertIsNotNone(verified.status)
+            self.assertNotEqual("bad signature", verified.status)
+
+        regex = (
+            r'Content-Type:\s+multipart/signed;\s+micalg="pgp-sha512";\s+protocol="appl'
+            r'ication/pgp-signature";\s+boundary="=+\d+==".+?--=+\d+==\nContent-Type:'
+            r'\s+multipart/mixed;\s+protected-headers="v1";\s+boundary="=+\d+==".+?--=+'
+            r'\d+==\nContent-Type:\s+text/rfc822-headers;\s+protected-headers="v1"\nCon'
+            r"tent-Disposition: inline\n(Subject:.+?\n|Date:.+?\n|From:.+?\n|Message-ID"
+            r":.+?\n|To:.+?\n)+\n\n--=+\d+==\nContent-Type:\s+multipart/alternative;\s+"
+            r'boundary="\w+"\n\n--\w+\nContent-Type: text/plain; charset="UTF-8"\nConte'
+            r"nt-Transfer-Encoding: 8bit\n\nThis is a message, with some text\.\n\nZ pś"
+            r"ijaśelnym póstrowom\nMit freundlichen Grüßen\n\ngpgmail\n--\w+\nContent-T"
+            r'ype: text/html; charset="utf-8"\nContent-Transfer-Encoding: 8bit\n\n<html'
+            r"><head></head><body><div>This is a <b>message</b>, with some <i>text</i>"
+            r"\.</div><div><br></div><div>Z pśijaśelnym póstrowom</div><div>Mit freundl"
+            r"ichen Grüßen</div><div><br></div><div>gpgmail</div><div><span></span></di"
+            r"v></body></html>\n--\w+--\n\n--=+\d+==--\n\n--=+\d+==\nContent-Type: appl"
+            r'ication/pgp-signature; name="signature\.asc"\nContent-Description: OpenPG'
+            r'P digital signature\nContent-Disposition: attachment; filename="signature'
+            r'\.asc"\n\n-+BEGIN PGP SIGNATURE-+[\d\w\n/=\+]+-+END PGP SIGNATURE-+\n\n--'
+            r"=+\d+==--\n"
+        )
+        self.assertIsNotNone(re.fullmatch(regex, decrypted, flags=re.S))
 
         mail = (
             "Return-Path: <bob@example.com>\nX-Original-To: alice@example.com\n"
@@ -916,6 +977,8 @@ class GPGMailTests(unittest.TestCase):
                 self.temp_gpg_homedir.name,
                 "-p",
                 "test",
+                "-k",
+                self.key_id,
             ],
             stdout=PIPE,
             stdin=PIPE,
@@ -933,6 +996,8 @@ class GPGMailTests(unittest.TestCase):
                 "./gpgmail",
                 "-p",
                 "test",
+                "-k",
+                self.key_id,
                 "-d",
                 "--gnupghome",
                 self.temp_gpg_homedir.name,
@@ -949,42 +1014,31 @@ class GPGMailTests(unittest.TestCase):
         self.assertIn("", stdout)
 
         regex = (
-            r'Content-Type: multipart/mixed; protected-headers="v1";\s+boundary="=+\d+='
-            r'="\nMIME-Version: 1\.0\nReturn-Path: <bob@example\.com>\nX-Original-To: a'
-            r"lice@example\.com\nDelivered-To: alice@example\.com\nReceived: from examp"
-            r"le\.com \(example\.com \[127\.0\.0\.1\]\) by example\.com \(Postfix\)\s+w"
-            r"ith ESMTPSA id E8DB612009F for <alice@example\.com>;\s+Tue,  7 Jan 2020 1"
-            r"9:30:03 \+0200 \(CEST\)\nMessage-ID: <123456789\.123456\.123456789@exampl"
-            r"e\.com>\nFrom: bob@example\.com\nTo: alice@example\.com\nDate: Tue,  7 Ja"
-            r"n 2020 19:30:03 \+0200\nReferences: <[\d\.]+ABCDEF@example\.com>\nSubject"
-            r": Fwd: Test\n\n--=+\d+==\nContent-Type: text/rfc822-headers; protected-he"
-            r'aders="v1"\nContent-Disposition: inline\n(Message-ID: <[\d\.]+@example\.c'
-            r"om>\n|From: bob@example\.com\n|Subject: Fwd: Test\n|Date: Tue,  7 Jan 202"
-            r"0 19:30:03 \+0200\n|References: <[\d\.]+ABCDEF@example\.com>\n|To: alice@"
-            r'example\.com\n)+\n\n--=+\d+==\nContent-Type: multipart/mixed; boundary="='
-            r'-spsfm35OzlCD03QPN9Hr"\n\n--=-spsfm35OzlCD03QPN9Hr\nContent-Type: text/pl'
-            r"ain\nContent-Transfer-Encoding: 7bit\n\nForwarded Message\n--=-spsfm35Ozl"
-            r"CD03QPN9Hr\nContent-Disposition: inline\nContent-Description: Weitergelei"
-            r"tete Nachricht =\?UTF-8\?Q\?=E2=80=93\?= Test\nContent-Type: message/rfc8"
-            r"22\nReturn-Path: <charlie@example\.com>\nReceived: from example\.com \(ex"
-            r"ample\.com \[127\.0\.0\.1\]\) by example\.com \(Postfix\)\s+with ESMTPSA "
-            r"id E8DB612009F for <alice@example\.com>;\s+Mon,  6 Jan 2020 18:01:10 \+02"
-            r"00 \(CEST\)\nMessage-ID: <[\d\.]+ABCDEF@example\.com>\nSubject: Test\nFro"
-            r"m: charlie@example\.com\nTo: alice@example\.com\nDate: Mon,  6 Jan 2020 1"
-            r'8:01:10 \+0200\nContent-Type: multipart/alternative; boundary="=-pCGCiOTg'
-            r'oFTJJwVyvskX"\nMIME-Version: 1\.0\n\n\n--=-pCGCiOTgoFTJJwVyvskX\nContent-'
-            r'Type: text/plain; charset="UTF-8"\nContent-Transfer-Encoding: quoted-prin'
-            r"table\nThis is a message, with some text\.\nZ p=C5=9Bija=C5=9Belnym p=C3="
-            r"B3strowom\nMit freundlichen Gr=C3=BC=C3=9Fen\ngpgmail\n--=-pCGCiOTgoFTJJw"
-            r'VyvskX\nContent-Type: text/html; charset="utf-8"\nContent-Transfer-Encodi'
-            r"ng: quoted-printable\n<html><head></head><body><div>This is a <b>message<"
-            r"/b>, with some <i>text</=\ni>\.</div><div><br></div><div>Z p=C5=9Bija=C5="
-            r"9Belnym p=C3=B3strowom</div><d=\niv>Mit freundlichen Gr=C3=BC=C3=9Fen</di"
-            r"v><div><br></div><div>gpgmail</div>=\n<div><span></span></div></body></ht"
-            r"ml>\n--=-pCGCiOTgoFTJJwVyvskX--\n--=-spsfm35OzlCD03QPN9Hr--\n\n--=+\d+==-"
-            r"-\n"
+            r'Content-Type:\s+multipart/signed;\s+micalg="pgp-sha512";\s+protocol="appl'
+            r'ication/pgp-signature";\s+boundary="=+\d+==".+?--=+\d+==\nContent-Type:'
+            r'\s+multipart/mixed;\s+protected-headers="v1";\s+boundary="=+\d+==".+?--=+'
+            r'\d+==\nContent-Type:\s+text/rfc822-headers;\s+protected-headers="v1"\nCon'
+            r"tent-Disposition: inline\n(Subject:.+?\n|Date:.+?\n|From:.+?\n|Message-ID"
+            r":.+?\n|To:.+?\n)+\n\n--=+\d+==\nContent-Type:\s+multipart/mixed;\s+bounda"
+            r'ry="=-[\d\w]+"\n\n--=-[\d\w]+\nContent-Type: text/plain\nContent-Transfer'
+            r"-Encoding: 7bit\n\nForwarded Message\n--=-[\w\d]+\nContent-Disposition: i"
+            r"nline\nContent-Description: Weitergeleitete Nachricht =\?UTF-8\?Q\?=E2=80"
+            r"=93\?= Test\nContent-Type: message/rfc822\n.+?Content-Type:\s+multipart/a"
+            r'lternative;\s+boundary="=-\w+".+?--=-\w+\nContent-Type: text/plain; chars'
+            r'et="UTF-8"\nContent-Transfer-Encoding: quoted-printable\nThis is a messag'
+            r"e, with some text\.\nZ p=C5=9Bija=C5=9Belnym p=C3=B3strowom\nMit freundli"
+            r"chen Gr=C3=BC=C3=9Fen\ngpgmail\n--=-\w+\nContent-Type: text/html; charset"
+            r'="utf-8"\nContent-Transfer-Encoding: quoted-printable\n<html><head></head'
+            r"><body><div>This is a <b>message</b>, with some <i>text</=\ni>\.</div><di"
+            r"v><br></div><div>Z p=C5=9Bija=C5=9Belnym p=C3=B3strowom</div><d=\niv>Mit "
+            r"freundlichen Gr=C3=BC=C3=9Fen</div><div><br></div><div>gpgmail</div>=\n<d"
+            r"iv><span></span></div></body></html>\n--=-\w+--\n--=-[\w\d]+--\n\n--=+\d+"
+            r'==--\n\n--=+\d+==\nContent-Type: application/pgp-signature; name="signatu'
+            r're\.asc"\nContent-Description: OpenPGP digital signature\nContent-Disposi'
+            r'tion: attachment; filename="signature\.asc"\n\n-+BEGIN PGP SIGNATURE-+[\w'
+            r"\d\+\n=/]+-+END PGP SIGNATURE-+\n\n--=+\d+==--\n"
         )
-        self.assertIsNotNone(re.fullmatch(regex, decrypted))
+        self.assertIsNotNone(re.fullmatch(regex, decrypted, flags=re.S))
 
         mail = (
             "Return-Path: <alice@example.com>\nDelivered-To: bob@example.com\nMIME-"
@@ -1220,6 +1274,8 @@ class GPGMailTests(unittest.TestCase):
                 self.temp_gpg_homedir.name,
                 "-p",
                 "test",
+                "-k",
+                self.key_id,
             ],
             stdout=PIPE,
             stdin=PIPE,
@@ -1234,6 +1290,8 @@ class GPGMailTests(unittest.TestCase):
         p = Popen(
             [
                 "./gpgmail",
+                "-k",
+                self.key_id,
                 "-p",
                 "test",
                 "-d",
@@ -1251,47 +1309,26 @@ class GPGMailTests(unittest.TestCase):
         self.assertEqual("", stderr)
 
         regex = (
-            r'Content-Type: multipart/mixed; protected-headers="v1"; boundary="=+\d+=="'
-            r"\nMIME-Version: 1\.0\nReturn-Path: <alice@example\.com>\nDelivered-To: "
-            r"bob@example\.com\nReply-To: alice@example\.com\nMessage-ID: <1234567890"
-            r"@example\.com>\nDate: Thu, 16 Jun 2022 13:00:00 \+0000\nFrom: alice@"
-            r"example\.com\nTo: bob@example\.com\nSubject: Invitation: Meeting @ Thu "
-            r"Jun 16, 2022 15:00\n - 16:00 \(CET\) \(bob@example\.com\)\n\n--=+\d+=="
-            r'\nContent-Type: text/rfc822-headers; protected-headers="v1"\nContent-'
-            r"Disposition: inline\n(Reply-To: alice@example\.com\n|From: alice@"
-            r"example\.com\n|Message-ID: <1234567890@example\.com>\n|Date: Thu, 16 "
-            r"Jun 2022 13:00:00 \+0000\n|Subject: Invitation: Meeting @ Thu Jun 16, "
-            r"2022 15:00\n - 16:00 \(CET\) \(bob@example\.com\)\n|To: bob@example\."
-            r'com\n)+\n\n--=+\d+==\nContent-Type: multipart/mixed; boundary="'
-            r'00000000000093d7be05d23e3c8d"\n\n--00000000000093d7be05d23e3c8d\n'
-            r'Content-Type: multipart/alternative; boundary="00000000000093d7bc05d23e'
-            r'3c8b"\n\n--00000000000093d7bc05d23e3c8b\nContent-Type: text/plain; '
-            r'charset="UTF-8"; format=flowed; delsp=yes\nContent-Transfer-Encoding: '
-            r"base64\n[\w\d\+\n]+--00000000000093d7bc05d23e3c8b\nContent-Type: text/"
-            r'html; charset="UTF-8"\nContent-Transfer-Encoding: quoted-printable[\s\w'
-            r'\d<>"=@#:/\.%;\-,&\(\)\?]+--00000000000093d7bc05d23e3c8b\nContent-Type:'
-            r' text/calendar; charset="UTF-8"; method=REQUEST\n\nBEGIN:VCALENDAR\n'
-            r"PRODID:-//Google Inc//Google Calendar 70\.9054//EN\nVERSION:2\.0\n"
-            r"CALSCALE:GREGORIAN\nMETHOD:REQUEST\nBEGIN:VEVENT\nDTSTART:20220616T1400"
-            r"00Z\nDTEND:20220616T150000Z\nDTSTAMP:20220616T130000Z\nORGANIZER;CN="
-            r"alice@example\.com:mailto:alice@example\.com\nUID:AAAAAAAAAAAAAAAAAAAAA"
-            r"AAAAAAA\nATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;PARTSTAT=ACCEP"
-            r"TED;RSVP=TRUE\n ;CN=alice@example\.com;X-NUM-GUESTS=0:mailto:alice@exam"
-            r"ple\.com\nATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;PARTSTAT=NEED"
-            r"S-ACTION;RSVP=\n TRUE;CN=bob@example\.com;X-NUM-GUESTS=0:mailto:bob@exa"
-            r"mple\.com\nX-MICROSOFT-CDO-OWNERAPPTID:-000000000\nCREATED:20220616T130"
-            r"000Z\nDESCRIPTION:-::~:~::~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~"
-            r":~:~:~:~:~\n :~:~:~:~:~:~:~:~::~:~::-\nDo not edit this section of the "
-            r"description.\n\nThis event has a video call\.\näöüßłšéźžŕÄÖÜŁ-::~:~:~:~"
-            r":~:~:~:~:~:~:~:~:~::~:\n ~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:~:"
-            r"~:~:~:~:~:~:~:~:~:~:~:~::~:~:\n :-\nLAST-MODIFIED:20220616T130000Z\nLOC"
-            r"ATION:\nSEQUENCE:0\nSTATUS:CONFIRMED\nSUMMARY:Meeting\nTRANSP:OPAQUE\nE"
-            r"ND:VEVENT\nEND:VCALENDAR\n\n--00000000000093d7bc05d23e3c8b--\n\n--00000"
-            r'000000093d7be05d23e3c8d\nContent-Type: application/ics; name="invite\.i'
-            r'cs"\nContent-Disposition: attachment; filename="invite\.ics"\nContent-'
-            r"Transfer-Encoding: base64\n\n[\w\d\n\+]+--00000000000093d7be05d23e3c8d"
-            r"--\n\n--=+\d+==--\n"
+            r'Content-Type:\s+multipart/signed;\s+micalg="pgp-sha512";\s+protocol="appl'
+            r'ication/pgp-signature";\s+boundary="=+\d+==".+?--=+\d+==\nContent-Type: m'
+            r'ultipart/mixed; protected-headers="v1"; boundary="=+\d+==".+?--=+\d+==\nC'
+            r'ontent-Type: text/rfc822-headers; protected-headers="v1"\nContent-Disposi'
+            r"tion: inline\n(From:.+?\n|Subject:.+?\n|Message-ID:.+?\n|To:.+?\n|Reply-T"
+            r"o:.+?\n|Date:.+?\n)+\n\n--=+\d+==\nContent-Type: multipart/mixed; boundar"
+            r'y="[\d\w]+"\n\n--[\d\w]+\nContent-Type: multipart/alternative; boundary="'
+            r'[\d\w]+"\n\n--[\d\w]+\nContent-Type: text/plain; charset="UTF-8"; format='
+            r"flowed; delsp=yes\nContent-Transfer-Encoding: base64\n\n[\w\d\n\+]+--[\w"
+            r'\d]+\nContent-Type: text/html; charset="UTF-8"\nContent-Transfer-Encoding'
+            r': quoted-printable.+?--[\w\d]+\nContent-Type: text/calendar; charset="UTF'
+            r'-8"; method=REQUEST.+?--[\d\w]+--\n\n--[\w\d]+\nContent-Type: application'
+            r'/ics; name="invite\.ics"\nContent-Disposition: attachment; filename="invi'
+            r'te\.ics"\nContent-Transfer-Encoding: base64[\n\w\d\+]+--[\w\d]+--\n\n--=+'
+            r'\d+==--\n\n--=+\d+==\nContent-Type: application/pgp-signature; name="sign'
+            r'ature\.asc"\nContent-Description: OpenPGP digital signature\nContent-Disp'
+            r'osition: attachment; filename="signature\.asc"\n\n-+BEGIN PGP SIGNATURE-+'
+            r"[\w\d\n\+/=]+-+END PGP SIGNATURE-+\n\n--=+\d+==--\n"
         )
+        self.assertIsNotNone(re.fullmatch(regex, decrypted, flags=re.S))
 
 
 if __name__ == "__main__":
