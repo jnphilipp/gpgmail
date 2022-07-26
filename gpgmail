@@ -81,7 +81,7 @@ def copy_headers(source: Message, target: Message) -> Message:
     return target
 
 
-def as_bytes(mail: Message) -> bytes:
+def as_bytes(mail: Message, maxheaderlen: int = 60) -> bytes:
     """Convert a message to bytes.
 
     Args:
@@ -91,7 +91,7 @@ def as_bytes(mail: Message) -> bytes:
      * Message as bytes.
     """
     fp = BytesIO()
-    g = BytesGenerator(fp, mangle_from_=True, maxheaderlen=60)
+    g = BytesGenerator(fp, mangle_from_=True, maxheaderlen=maxheaderlen)
     g.flatten(mail, linesep="\r\n")
     return fp.getvalue()
 
@@ -258,7 +258,7 @@ def sign(
     pmail = protected_headers_mail(mail)
     gpg = GPG(gnupghome=gnupghome)
     signature = gpg.sign(
-        as_bytes(pmail),
+        as_bytes(pmail, 0),
         keyid=key,
         passphrase=passphrase,
         detach=True,
