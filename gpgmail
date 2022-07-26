@@ -28,15 +28,16 @@ Encrypted email are not reencrypted. This is check based on the content type.
 """
 
 
-import re
 import traceback
 import sys
 
 from argparse import ArgumentParser, FileType, RawTextHelpFormatter
 from email import message_from_bytes
+from email.generator import BytesGenerator
 from email.message import Message
 from email.mime.base import MIMEBase
 from gnupg import GPG
+from io import BytesIO
 from typing import List
 
 
@@ -89,10 +90,10 @@ def as_bytes(mail: Message) -> bytes:
     Return:
      * Message as bytes.
     """
-    try:
-        return mail.as_bytes()
-    except UnicodeEncodeError:
-        return mail.as_string(maxheaderlen=60).encode("utf8")
+    fp = BytesIO()
+    g = BytesGenerator(fp, mangle_from_=True, maxheaderlen=60)
+    g.flatten(mail, linesep="\r\n")
+    return fp.getvalue()
 
 
 def decrypt(mail: Message, gnupghome: str = None, **kwargs) -> bytes:
@@ -257,7 +258,7 @@ def sign(
     pmail = protected_headers_mail(mail)
     gpg = GPG(gnupghome=gnupghome)
     signature = gpg.sign(
-        re.sub(rb"\r?\n", b"\r\n", as_bytes(pmail)),
+        as_bytes(pmail),
         keyid=key,
         passphrase=passphrase,
         detach=True,
