@@ -457,6 +457,8 @@ class GPGMailTests(unittest.TestCase):
 
     def test_encryptheaders(self):
         """Test encryption of headers (RFC 822)."""
+        gpg = gnupg.GPG(gnupghome=self.temp_gpg_homedir.name)
+
         mail = (
             "Return-Path: <alice@example.com>\nReceived: from example.com (example.com "
             + "[127.0.0.1])\n    by example.com (Postfix) with ESMTPSA id E8DB612009F\n"
@@ -607,6 +609,15 @@ class GPGMailTests(unittest.TestCase):
         self.assertIn("Subject: Test\n", decrypted)
         self.assertIn("To: alice@example.com\n", decrypted)
 
+        with NamedTemporaryFile("wt") as f:
+            mail, signature = message_from_bytes(decrypted.encode("utf8")).get_payload()
+            f.write(signature.get_payload())
+
+            verified = gpg.verify_data(f.name, mail.as_bytes())
+            print(verified.status)
+            self.assertIsNotNone(verified.status)
+            self.assertNotEqual("bad signature", verified.status)
+
     def test_encryptfail(self):
         """Test encryption fails."""
         mail = (
@@ -677,6 +688,8 @@ class GPGMailTests(unittest.TestCase):
 
     def test_sign_encrypt_decrypt_utf8(self):
         """Test signing, encryption and decryption with utf8 encoding."""
+        gpg = gnupg.GPG(gnupghome=self.temp_gpg_homedir.name)
+
         mail = (
             "Return-Path: <alice@example.com>\nReceived: from example.com (example.com "
             "[127.0.0.1])\n    by example.com (Postfix) with ESMTPSA id E8DB612009F\n  "
@@ -728,6 +741,15 @@ class GPGMailTests(unittest.TestCase):
         decrypted, stderr = p.communicate(input=encrypted)
         self.assertIn(msg, decrypted)
         self.assertEqual("", stderr)
+
+        with NamedTemporaryFile("wt") as f:
+            mail, signature = message_from_bytes(decrypted.encode("utf8")).get_payload()
+            f.write(signature.get_payload())
+
+            verified = gpg.verify_data(f.name, mail.as_bytes())
+            print(verified.status)
+            self.assertIsNotNone(verified.status)
+            self.assertNotEqual("bad signature", verified.status)
 
         regex = (
             r'Content-Type: multipart/mixed; protected-headers="v1";\s+boundary="=+\d+='
