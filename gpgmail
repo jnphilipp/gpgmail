@@ -29,6 +29,7 @@ Encrypted email are not reencrypted. This is check based on the content type.
 
 
 import traceback
+import socket
 import sys
 
 from argparse import ArgumentParser, FileType, RawTextHelpFormatter
@@ -81,6 +82,22 @@ def copy_headers(source: Message, target: Message) -> Message:
     return target
 
 
+def add_gpgmail_header(mail: Message) -> Message:
+    """Add X-gpgmail header to message if not already present.
+
+    Args:
+     * mail: message to add header to
+
+    Return:
+     * mail with X-gpgmail header
+    """
+    if "X-gpgmail" not in mail:
+        mail.add_header(
+            "X-gpgmail", f"gpgmail v{__version__} on {socket.gethostname()}"
+        )
+    return mail
+
+
 def as_bytes(mail: Message, maxheaderlen: int = 60) -> bytes:
     """Convert a message to bytes.
 
@@ -96,7 +113,7 @@ def as_bytes(mail: Message, maxheaderlen: int = 60) -> bytes:
     return fp.getvalue()
 
 
-def decrypt(mail: Message, gnupghome: str = None, **kwargs) -> bytes:
+def decrypt(mail: Message, gnupghome: str = None, **kwargs) -> Message:
     """Decrypt mail.
 
     Args:
@@ -105,13 +122,13 @@ def decrypt(mail: Message, gnupghome: str = None, **kwargs) -> bytes:
      * **kwargs: additional arguments for decryption
 
     Returns:
-     * Decrypted mail as bytes.
+     * Decrypted mail.
     """
     gpg = GPG(gnupghome=gnupghome)
     decrypted = gpg.decrypt(as_bytes(mail), **kwargs)
     if not decrypted.ok:
         raise RuntimeError(f"Could not decrypt message: {decrypted.status}")
-    return decrypted.data
+    return message_from_bytes(decrypted.data)
 
 
 def encrypt(
@@ -144,7 +161,7 @@ def encrypt(
     else:
         pmail = protected_headers_mail(mail)
     gpg = GPG(gnupghome=gnupghome)
-    encrypted = gpg.encrypt(as_bytes(pmail), recipients)
+    encrypted = gpg.encrypt(as_bytes(add_gpgmail_header(pmail)), recipients)
     if not encrypted.ok:
         raise RuntimeError(f"Could not encrypt message: {encrypted.status}")
 
@@ -340,7 +357,11 @@ if __name__ == "__main__":
         mail = message_from_bytes(orig_mail)
         if args.decrypt:
             sys.stdout.buffer.write(
-                decrypt(mail, args.gnupghome, passphrase=args.passphrase)
+                as_bytes(
+                    add_gpgmail_header(
+                        decrypt(mail, args.gnupghome, passphrase=args.passphrase)
+                    )
+                )
             )
         elif args.encrypt or args.sign_encrypt:
             if mail.get_content_type() == "multipart/encrypted":
@@ -348,21 +369,27 @@ if __name__ == "__main__":
             else:
                 sys.stdout.buffer.write(
                     as_bytes(
-                        encrypt(
-                            mail,
-                            args.RECIPIENTS,
-                            args.sign_encrypt,
-                            args.key,
-                            args.passphrase,
-                            args.encrypt_headers,
-                            args.encrypt_subject,
-                            args.gnupghome,
+                        add_gpgmail_header(
+                            encrypt(
+                                mail,
+                                args.RECIPIENTS,
+                                args.sign_encrypt,
+                                args.key,
+                                args.passphrase,
+                                args.encrypt_headers,
+                                args.encrypt_subject,
+                                args.gnupghome,
+                            )
                         )
                     )
                 )
         elif args.sign:
             sys.stdout.buffer.write(
-                as_bytes(sign(mail, args.key, args.passphrase, args.gnupghome))
+                as_bytes(
+                    add_gpgmail_header(
+                        sign(mail, args.key, args.passphrase, args.gnupghome)
+                    )
+                )
             )
     except Exception:
         traceback.print_exc(file=sys.stderr)

@@ -22,6 +22,7 @@
 
 import gnupg
 import re
+import socket
 import unittest
 
 from subprocess import Popen, PIPE
@@ -102,6 +103,12 @@ class GPGMailTests(unittest.TestCase):
         encrypted, stderr = p.communicate(input=mail)
         self.assertNotIn(msg, encrypted)
         self.assertEqual("", stderr)
+        self.assertIsNotNone(
+            re.search(
+                rf"X-gpgmail: gpgmail v\d+\.\d+\.\d+ on {socket.gethostname()}",
+                encrypted,
+            )
+        )
 
         p = Popen(
             [
@@ -122,7 +129,12 @@ class GPGMailTests(unittest.TestCase):
         decrypted, stderr = p.communicate(input=encrypted)
         self.assertIn(msg, decrypted)
         self.assertEqual("", stderr)
-
+        self.assertIsNotNone(
+            re.search(
+                rf"X-gpgmail: gpgmail v\d+\.\d+\.\d+ on {socket.gethostname()}",
+                decrypted,
+            )
+        )
         regex = (
             r'Content-Type:\s+multipart/mixed;\s+protected-headers="v1";\s+boundary="=+'
             r'\d+==".+?--=+\d+==\nContent-Type:\s+text/rfc822-headers;\s+protected-head'
@@ -167,6 +179,12 @@ class GPGMailTests(unittest.TestCase):
         )
         self.assertNotIn("Z pśijaśelnym póstrowom\nMit freundlichen Grüßen", decrypted)
         self.assertEqual("", stderr)
+        self.assertIsNotNone(
+            re.search(
+                rf"X-gpgmail: gpgmail v\d+\.\d+\.\d+ on {socket.gethostname()}",
+                encrypted,
+            )
+        )
 
         p = Popen(
             [
@@ -187,7 +205,12 @@ class GPGMailTests(unittest.TestCase):
         decrypted, stderr = p.communicate(input=encrypted)
         self.assertIn("Z pśijaśelnym póstrowom\nMit freundlichen Grüßen", decrypted)
         self.assertEqual("", stderr)
-
+        self.assertIsNotNone(
+            re.search(
+                rf"X-gpgmail: gpgmail v\d+\.\d+\.\d+ on {socket.gethostname()}",
+                decrypted,
+            )
+        )
         regex = (
             r'Content-Type:\s+multipart/mixed;\s+protected-headers="v1";\s+boundary="=+'
             r'\d+==".+?--=+\d+==\nContent-Type:\s+text/rfc822-headers;\s+protected-head'
@@ -224,6 +247,12 @@ class GPGMailTests(unittest.TestCase):
         encrypted, stderr = p.communicate(input=mail)
         self.assertNotIn(msg, encrypted)
         self.assertEqual("", stderr)
+        self.assertIsNotNone(
+            re.search(
+                rf"X-gpgmail: gpgmail v\d+\.\d+\.\d+ on {socket.gethostname()}",
+                encrypted,
+            )
+        )
 
         p = Popen(
             [
@@ -244,7 +273,12 @@ class GPGMailTests(unittest.TestCase):
         decrypted, stderr = p.communicate(input=encrypted)
         self.assertIn(msg, decrypted)
         self.assertEqual("", stderr)
-
+        self.assertIsNotNone(
+            re.search(
+                rf"X-gpgmail: gpgmail v\d+\.\d+\.\d+ on {socket.gethostname()}",
+                decrypted,
+            )
+        )
         regex = (
             r'Content-Type:\s+multipart/mixed;\s+protected-headers="v1";\s+boundary="=+'
             r'\d+==".+?--=+\d+==\nContent-Type:\s+text/rfc822-headers;\s+protected-head'
@@ -290,6 +324,11 @@ class GPGMailTests(unittest.TestCase):
         signed, stderr = p.communicate(input=mail)
         self.assertIn(msg, signed)
         self.assertEqual("", stderr)
+        self.assertIsNotNone(
+            re.search(
+                rf"X-gpgmail: gpgmail v\d+\.\d+\.\d+ on {socket.gethostname()}", signed
+            )
+        )
 
         m = re.search(
             r"--=+\d+==\n(?P<data>.+?)--=+\d+==--.+?(?P<signature>-+BEGIN PGP "
@@ -351,6 +390,11 @@ class GPGMailTests(unittest.TestCase):
         signed, stderr = p.communicate(input=mail)
         self.assertIn(msg, signed)
         self.assertEqual("", stderr)
+        self.assertIsNotNone(
+            re.search(
+                rf"X-gpgmail: gpgmail v\d+\.\d+\.\d+ on {socket.gethostname()}", signed
+            )
+        )
 
         m = re.search(
             r"--=+\d+==\n(?P<data>.+?)--=+\d+==--.+?(?P<signature>-+BEGIN PGP "
@@ -418,6 +462,12 @@ class GPGMailTests(unittest.TestCase):
         encrypted, stderr = p.communicate(input=mail)
         self.assertNotIn(msg, encrypted)
         self.assertEqual("", stderr)
+        self.assertIsNotNone(
+            re.search(
+                rf"X-gpgmail: gpgmail v\d+\.\d+\.\d+ on {socket.gethostname()}",
+                encrypted,
+            )
+        )
 
         p = Popen(
             [
@@ -438,6 +488,12 @@ class GPGMailTests(unittest.TestCase):
         decrypted, stderr = p.communicate(input=encrypted)
         self.assertIn(msg, decrypted)
         self.assertEqual("", stderr)
+        self.assertIsNotNone(
+            re.search(
+                rf"X-gpgmail: gpgmail v\d+\.\d+\.\d+ on {socket.gethostname()}",
+                decrypted,
+            )
+        )
 
         m = re.search(
             r"--=+\d+==\n(?P<data>.+?)--=+\d+==--.+?(?P<signature>-+BEGIN PGP "
@@ -517,6 +573,12 @@ class GPGMailTests(unittest.TestCase):
         )
         self.assertNotIn("Subject: Test\n", encrypted)
         self.assertNotIn("To: alice@example.com\n", encrypted)
+        self.assertIsNotNone(
+            re.search(
+                rf"X-gpgmail: gpgmail v\d+\.\d+\.\d+ on {socket.gethostname()}",
+                encrypted,
+            )
+        )
 
         p = Popen(
             [
@@ -549,6 +611,12 @@ class GPGMailTests(unittest.TestCase):
         )
         self.assertIn("Subject: Test\n", decrypted)
         self.assertIn("To: alice@example.com\n", decrypted)
+        self.assertIsNotNone(
+            re.search(
+                rf"X-gpgmail: gpgmail v\d+\.\d+\.\d+ on {socket.gethostname()}",
+                decrypted,
+            )
+        )
 
         mail = (
             "Return-Path: <alice@example.com>\nReceived: from example.com (example.com "
@@ -599,6 +667,12 @@ class GPGMailTests(unittest.TestCase):
         )
         self.assertNotIn("Subject: Test\n", encrypted)
         self.assertNotIn("To: alice@example.com\n", encrypted)
+        self.assertIsNotNone(
+            re.search(
+                rf"X-gpgmail: gpgmail v\d+\.\d+\.\d+ on {socket.gethostname()}",
+                encrypted,
+            )
+        )
 
         p = Popen(
             [
@@ -631,6 +705,12 @@ class GPGMailTests(unittest.TestCase):
         )
         self.assertIn("Subject: Test\n", decrypted)
         self.assertIn("To: alice@example.com\n", decrypted)
+        self.assertIsNotNone(
+            re.search(
+                rf"X-gpgmail: gpgmail v\d+\.\d+\.\d+ on {socket.gethostname()}",
+                decrypted,
+            )
+        )
 
         m = re.search(
             r"--=+\d+==\n(?P<data>.+?)--=+\d+==--.+?(?P<signature>-+BEGIN PGP "
@@ -761,6 +841,12 @@ class GPGMailTests(unittest.TestCase):
         encrypted, stderr = p.communicate(input=mail)
         self.assertNotIn(msg, encrypted)
         self.assertEqual("", stderr)
+        self.assertIsNotNone(
+            re.search(
+                rf"X-gpgmail: gpgmail v\d+\.\d+\.\d+ on {socket.gethostname()}",
+                encrypted,
+            )
+        )
 
         p = Popen(
             [
@@ -781,6 +867,12 @@ class GPGMailTests(unittest.TestCase):
         decrypted, stderr = p.communicate(input=encrypted)
         self.assertIn(msg, decrypted)
         self.assertEqual("", stderr)
+        self.assertIsNotNone(
+            re.search(
+                rf"X-gpgmail: gpgmail v\d+\.\d+\.\d+ on {socket.gethostname()}",
+                decrypted,
+            )
+        )
 
         m = re.search(
             r"--=+\d+==\n(?P<data>.+?)--=+\d+==--.+?(?P<signature>-+BEGIN PGP "
@@ -866,6 +958,12 @@ class GPGMailTests(unittest.TestCase):
         self.assertNotIn(msg, encrypted)
         self.assertNotIn(msg2, encrypted)
         self.assertEqual("", stderr)
+        self.assertIsNotNone(
+            re.search(
+                rf"X-gpgmail: gpgmail v\d+\.\d+\.\d+ on {socket.gethostname()}",
+                encrypted,
+            )
+        )
 
         p = Popen(
             [
@@ -887,6 +985,12 @@ class GPGMailTests(unittest.TestCase):
         self.assertIn(msg, decrypted)
         self.assertIn(msg2, decrypted)
         self.assertEqual("", stderr)
+        self.assertIsNotNone(
+            re.search(
+                rf"X-gpgmail: gpgmail v\d+\.\d+\.\d+ on {socket.gethostname()}",
+                decrypted,
+            )
+        )
 
         m = re.search(
             r"--=+\d+==\n(?P<data>.+?)--=+\d+==--.+?(?P<signature>-+BEGIN PGP "
@@ -990,6 +1094,12 @@ class GPGMailTests(unittest.TestCase):
         self.assertNotIn(msg2, encrypted)
         self.assertNotIn(msg3, encrypted)
         self.assertIn("", stdout)
+        self.assertIsNotNone(
+            re.search(
+                rf"X-gpgmail: gpgmail v\d+\.\d+\.\d+ on {socket.gethostname()}",
+                encrypted,
+            )
+        )
 
         p = Popen(
             [
@@ -1286,6 +1396,12 @@ class GPGMailTests(unittest.TestCase):
         self.assertNotIn(msg, encrypted)
         self.assertNotIn(msg2, encrypted)
         self.assertEqual("", stderr)
+        self.assertIsNotNone(
+            re.search(
+                rf"X-gpgmail: gpgmail v\d+\.\d+\.\d+ on {socket.gethostname()}",
+                encrypted,
+            )
+        )
 
         p = Popen(
             [
@@ -1307,6 +1423,12 @@ class GPGMailTests(unittest.TestCase):
         self.assertIn(msg, decrypted)
         self.assertIn(msg2, decrypted)
         self.assertEqual("", stderr)
+        self.assertIsNotNone(
+            re.search(
+                rf"X-gpgmail: gpgmail v\d+\.\d+\.\d+ on {socket.gethostname()}",
+                encrypted,
+            )
+        )
 
         regex = (
             r'Content-Type:\s+multipart/signed;\s+micalg="pgp-sha512";\s+protocol="appl'
