@@ -45,7 +45,7 @@ from typing import List
 __author__ = "J. Nathanael Philipp"
 __email__ = "nathanael@philipp.land"
 __license__ = "GPLv3"
-__version__ = "0.7.3"
+__version__ = "0.7.4"
 __github__ = "https://github.com/jnphilipp/gpgmail"
 VERSION = (
     f"%(prog)s v{__version__}\n\nReport bugs to {__github__}/issues."
