@@ -178,7 +178,7 @@ def encrypt(
     pgp_msg_part2.add_header(
         _name="Content-Disposition", _value="inline", filename="encrypted.asc"
     )
-    pgp_msg_part2.set_payload(str(encrypted))
+    pgp_msg_part2.set_payload(encrypted.data)
 
     pgp_msg.attach(pgp_msg_part1)
     pgp_msg.attach(pgp_msg_part2)
