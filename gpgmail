@@ -39,7 +39,7 @@ from email.message import Message
 from email.mime.base import MIMEBase
 from gnupg import GPG
 from io import BytesIO
-from typing import List
+from typing import List, Optional
 
 
 __author__ = "J. Nathanael Philipp"
@@ -113,7 +113,7 @@ def as_bytes(mail: Message, maxheaderlen: int = 60) -> bytes:
     return fp.getvalue()
 
 
-def decrypt(mail: Message, gnupghome: str = None, **kwargs) -> Message:
+def decrypt(mail: Message, gnupghome: Optional[str] = None, **kwargs) -> Message:
     """Decrypt mail.
 
     Args:
@@ -135,11 +135,11 @@ def encrypt(
     mail: Message,
     recipients: List[str],
     sign_mail: bool = True,
-    key: str = None,
-    passphrase: str = None,
+    key: Optional[str] = None,
+    passphrase: Optional[str] = None,
     encrypt_headers: bool = False,
     encrypt_subject: bool = False,
-    gnupghome: str = None,
+    gnupghome: Optional[str] = None,
 ) -> Message:
     """Encrypt mail.
 
@@ -259,7 +259,10 @@ def protected_headers_mail(mail: Message) -> Message:
 
 
 def sign(
-    mail: Message, key: str, passphrase: str = None, gnupghome: str = None
+    mail: Message,
+    key: str,
+    passphrase: Optional[str] = None,
+    gnupghome: Optional[str] = None,
 ) -> Message:
     """Sign mail.
 
