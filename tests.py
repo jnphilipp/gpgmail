@@ -1452,6 +1452,104 @@ class GPGMailTests(unittest.TestCase):
         )
         self.assertIsNotNone(re.fullmatch(regex, decrypted, flags=re.S))
 
+    def test_plus_email_addresses(self):
+        """Test signing, encryption and decryption."""
+        gpg = gnupg.GPG(gnupghome=self.temp_gpg_homedir.name)
+
+        mail = (
+            "Return-Path: <alicei+test@example.com>\nReceived: from example.com (examp"
+            "le.com [127.0.0.1])\n    by example.com (Postfix) with ESMTPSA id E8DB612"
+            "009F\n    for <alice+test@example.com>; Tue,  7 Jan 2020 19:30:03 +0200 ("
+            'CEST)\nContent-Type: text/plain; charset="utf-8"\n MIME-Version: 1.0\n'
+            "Content-Transfer-Encoding: 7bit\nSubject: Test\nFrom: alice@example.com"
+            "\nTo: alice+test@example.com\nDate: Tue, 07 Jan 2020 19:30:03 -0000\n"
+            "Message-ID:\n <123456789.123456.123456789@example.com>\n\nThis is a "
+            "test message."
+        )
+        msg = "This is a test message."
+
+        p = Popen(
+            [
+                "./gpgmail",
+                "-E",
+                "alice+test@example.com",
+                "--gnupghome",
+                self.temp_gpg_homedir.name,
+                "-k",
+                self.key_id,
+                "-p",
+                "test",
+            ],
+            stdout=PIPE,
+            stdin=PIPE,
+            stderr=PIPE,
+            encoding="utf8",
+        )
+        encrypted, stderr = p.communicate(input=mail)
+        self.assertNotIn(msg, encrypted)
+        self.assertEqual("", stderr)
+        self.assertIsNotNone(
+            re.search(
+                rf"X-gpgmail: gpgmail v\d+\.\d+\.\d+ on {socket.gethostname()}",
+                encrypted,
+            )
+        )
+
+        p = Popen(
+            [
+                "./gpgmail",
+                "-d",
+                "--gnupghome",
+                self.temp_gpg_homedir.name,
+                "-k",
+                self.key_id,
+                "-p",
+                "test",
+            ],
+            stdout=PIPE,
+            stdin=PIPE,
+            stderr=PIPE,
+            encoding="utf8",
+        )
+        decrypted, stderr = p.communicate(input=encrypted)
+        self.assertIn(msg, decrypted)
+        self.assertEqual("", stderr)
+        self.assertIsNotNone(
+            re.search(
+                rf"X-gpgmail: gpgmail v\d+\.\d+\.\d+ on {socket.gethostname()}",
+                decrypted,
+            )
+        )
+
+        m = re.search(
+            r"--=+\d+==\n(?P<data>.+?)--=+\d+==--.+?(?P<signature>-+BEGIN PGP "
+            r"SIGNATURE-+.+?-+END PGP SIGNATURE-+)",
+            decrypted,
+            flags=re.S,
+        )
+        self.assertIsNotNone(m)
+        with NamedTemporaryFile("wt") as f:
+            f.write(m.group("signature"))
+
+            verified = gpg.verify_data(f.name, m.group("data").encode("utf8"))
+            self.assertIsNotNone(verified.status)
+            self.assertNotEqual("bad signature", verified.status)
+
+        regex = (
+            r'Content-Type:\s+multipart/signed;\s+micalg="pgp-sha512";\s+protocol="appl'
+            r'ication/pgp-signature";\s+boundary="=+\d+=="\n.+?\n\n--=+\d+==\nContent-T'
+            r'ype:\s+multipart/mixed;\s+protected-headers="v1";\s+boundary="=+\d+=="\n'
+            r".+?\n\n--=+\d+==\nContent-Type:\s+text/rfc822-headers;\s+protected-header"
+            r's="v1"\nContent-Disposition: inline\n(Date:.+?\n|Message-ID:.+?\n|Subject'
+            r":.+?\n|To:.+?\n|From:.+?\n)+\n\n--=+\d+==\nContent-Type: text/plain; char"
+            r'set="utf-8".+?This is a test message\.\n--=+\d+==--\n\n--=+\d+==\nContent'
+            r'-Type: application/pgp-signature; name="signature\.asc"\nContent-Descript'
+            r"ion: OpenPGP digital signature\nContent-Disposition: attachment; filename"
+            r'="signature\.asc"\n\n-+BEGIN PGP SIGNATURE-+\n\n[\w\n\+/=]+\n-+END PGP SI'
+            r"GNATURE-+\n\n--=+\d+==--\n"
+        )
+        self.assertIsNotNone(re.fullmatch(regex, decrypted, flags=re.S))
+
 
 if __name__ == "__main__":
     unittest.main()

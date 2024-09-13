@@ -29,6 +29,7 @@ Encrypted email are not reencrypted. This is check based on the content type.
 
 
 import traceback
+import re
 import socket
 import sys
 
@@ -63,6 +64,34 @@ PROTECTED_HEADERS = {
     "Subject",
     "To",
 }
+
+
+def check_for_plus_addresses(gpg: GPG, identifiers: List[str]) -> List[str]:
+    """Check if an email address contains a plus part, that is not part of the GPG key.
+
+    Args:
+     * gpg: GPG environment to use
+     * identifiers: a list of email adresses
+
+    Return:
+     * clean list of email address
+    """
+    to_check = []
+    for i in range(len(identifiers)):
+        if re.fullmatch(r"[^\+]+\+[^@]+@.+", identifiers[i]):
+            to_check.append(i)
+
+    keys = gpg.list_keys()
+    for key in keys:
+        for i in to_check:
+            if identifiers[i] not in key["uids"] and identifiers[i] != key["keyid"]:
+                clean_identifier = re.sub(r"\+[^@]+", "", identifiers[i])
+                if (
+                    any(clean_identifier in uid for uid in key["uids"])
+                    or clean_identifier == key["keyid"]
+                ):
+                    identifiers[i] = clean_identifier
+    return identifiers
 
 
 def copy_headers(source: Message, target: Message) -> Message:
@@ -161,7 +190,9 @@ def encrypt(
     else:
         pmail = protected_headers_mail(mail)
     gpg = GPG(gnupghome=gnupghome)
-    encrypted = gpg.encrypt(as_bytes(add_gpgmail_header(pmail)), recipients)
+    encrypted = gpg.encrypt(
+        as_bytes(add_gpgmail_header(pmail)), check_for_plus_addresses(gpg, recipients)
+    )
     if not encrypted.ok:
         raise RuntimeError(f"Could not encrypt message: {encrypted.status}")
 
