@@ -122,7 +122,7 @@ build/package/DEBIAN/control: build/package/DEBIAN/md5sums
 	$(Q)echo "Section: mail" >> build/package/DEBIAN/control
 	$(Q)echo "Priority: optional" >> build/package/DEBIAN/control
 	$(Q)echo "Architecture: all" >> build/package/DEBIAN/control
-	$(Q)echo "Depends: python3 (<< 3.11), python3 (>= 3.7), python3-gnupg, gnupg" >> build/package/DEBIAN/control
+	$(Q)echo "Depends: python3 (<< 3.12), python3 (>= 3.9), python3-gnupg, gnupg" >> build/package/DEBIAN/control
 	$(Q)echo "Installed-Size: `du -sk build/package/usr | grep -oE "[0-9]+"`" >> build/package/DEBIAN/control
 	$(Q)echo "Maintainer: J. Nathanael Philipp (jnphilipp) <nathanael@philipp.land>" >> build/package/DEBIAN/control
 	$(Q)echo "Homepage: https://github.com/jnphilipp/gpgmail" >> build/package/DEBIAN/control

@@ -10,10 +10,9 @@ ignored, and only the encrypted headers are restored.
 
 Encrypted email are not reencrypted. This is check based on the content type.
 
-
 ## Requirements
 
-* Python 3.7 or newer
+* Python 3.9 or newer
 * python-gnupg
 * gnupg
 
